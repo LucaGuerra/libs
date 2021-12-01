@@ -767,6 +767,55 @@ std::string sinsp_plugin::str_from_alloc_charbuf(const char* charbuf)
 	return str;
 }
 
+std::vector<std::pair<std::string, std::string> > sinsp_plugin::field_display_names()
+{
+	std::vector<std::pair<std::string, std::string> > ret;
+	if(!m_plugin_info.get_fields) {
+		return ret;
+	}
+
+	const char* sfields = m_plugin_info.get_fields();
+	if(sfields == NULL)
+	{
+		throw sinsp_exception(string("error in plugin ") + m_name + ": get_fields returned a null string (field_display_names())");
+	}
+
+	string json(sfields);
+	SINSP_DEBUG("Parsing Fields JSON=%s", json.c_str());
+	Json::Value root;
+	if(Json::Reader().parse(json, root) == false || root.type() != Json::arrayValue)
+	{
+		throw sinsp_exception(string("error in plugin ") + m_name + ": get_fields returned an invalid JSON");
+	}
+
+	filtercheck_field_info *fields = new filtercheck_field_info[root.size()];
+	if(fields == NULL)
+	{
+		throw sinsp_exception(string("error in plugin ") + m_name + ": could not allocate memory");
+	}
+
+	for(Json::Value::ArrayIndex j = 0; j < root.size(); j++)
+	{
+		const Json::Value &jvname = root[j]["name"];
+		string fname = jvname.asString();
+		if(fname == "")
+		{
+			throw sinsp_exception(string("error in plugin ") + m_name + ": field JSON entry has no name");
+		}
+
+		const Json::Value &jvdisplay = root[j]["display"];
+		string fdisplay = jvdisplay.asString();
+		if(fdisplay == "")
+		{
+			continue;
+		}
+
+		ret.emplace_back(fname, fdisplay);
+	}
+
+	return ret;
+}
+
 bool sinsp_plugin::resolve_dylib_symbols(void *handle, std::string &errstr)
 {
 	// Some functions are required and return false if not found.

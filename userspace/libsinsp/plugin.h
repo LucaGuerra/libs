@@ -119,6 +119,7 @@ public:
 
 	bool extract_field(ss_plugin_event &evt, sinsp_plugin::ext_field &field);
 	std::string dump_all_fields_json(sinsp_evt *evt);
+	std::vector<std::pair<std::string, std::string> > field_display_names();
 
 protected:
 	// Helper function to resolve symbols
