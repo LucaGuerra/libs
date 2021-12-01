@@ -609,6 +609,88 @@ uint32_t sinsp_plugin::nfields()
 	return m_nfields;
 }
 
+
+std::string sinsp_plugin::dump_all_fields_json(sinsp_evt *evt)
+{
+	sinsp_evt_param *parinfo;
+	parinfo = evt->get_param(1);
+
+	ss_plugin_event pevt;
+	pevt.evtnum = evt->get_num();
+	pevt.data = (uint8_t *) parinfo->m_val;
+	pevt.datalen = parinfo->m_len;
+	pevt.ts = evt->get_ts();
+
+	if(!m_plugin_info.extract_fields || !plugin_state())
+	{
+		return "PLUGIN_STATE_INVALID";
+	}
+
+	std::vector<ss_plugin_extract_field> requested_fields;
+
+	uint32_t num_fields = 0;
+	for (uint32_t i = 0; i < m_nfields; i++) {
+		filtercheck_field_info &field = m_fields.get()[i];
+		if((field.m_flags & EPF_HIDDEN) != 0)
+		{
+			continue;
+		}
+
+		num_fields++;
+
+		ss_plugin_extract_field efield;
+		efield.field_id = i;
+		efield.field = field.m_name;
+		efield.arg = "";
+		efield.ftype = field.m_type;
+
+		requested_fields.push_back(efield);
+	}
+
+	ss_plugin_rc rc;
+
+	rc = m_plugin_info.extract_fields(plugin_state(), &pevt, num_fields, requested_fields.data());
+
+	if (rc != SS_PLUGIN_SUCCESS)
+	{
+		return "NOPE_SOMETHING_IS_WRONG";
+	}
+
+	std::ostringstream os;
+
+	os << "{";
+
+	for (uint32_t i = 0; i < num_fields; i++) {
+		ss_plugin_extract_field efield = requested_fields[i];
+		if (!efield.field_present) {
+			continue;
+		}
+
+		if (efield.field_present) {
+			if (i != 0) os << ",";
+			os << "\"" << efield.field << "\":";
+			switch(efield.ftype)
+			{
+			case PT_CHARBUF:
+				os << "\"" << efield.res_str << "\"";
+				break;
+			case PT_UINT64:
+				os << efield.res_u64;
+				break;
+			default:
+				ASSERT(false);
+				throw sinsp_exception("plugin extract error: unsupported field type " + to_string(efield.ftype));
+				break;
+			}
+		}
+	}
+
+	os << "}";
+
+	return os.str();
+}
+
+
 bool sinsp_plugin::extract_field(ss_plugin_event &evt, sinsp_plugin::ext_field &field)
 {
 	if(!m_plugin_info.extract_fields || !plugin_state())

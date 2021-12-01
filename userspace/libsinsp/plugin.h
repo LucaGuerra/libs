@@ -118,6 +118,7 @@ public:
 	uint32_t nfields();
 
 	bool extract_field(ss_plugin_event &evt, sinsp_plugin::ext_field &field);
+	std::string dump_all_fields_json(sinsp_evt *evt);
 
 protected:
 	// Helper function to resolve symbols
