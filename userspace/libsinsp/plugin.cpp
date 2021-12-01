@@ -810,6 +810,13 @@ bool sinsp_plugin::resolve_dylib_symbols(void *handle, std::string &errstr)
 					tf.m_flags = filtercheck_field_flags::EPF_REQUIRES_ARGUMENT;
 				}
 			}
+
+			const Json::Value &jvproperties = root[j]["properties"];
+			string fproperties = jvproperties.asString();
+			if(fproperties == "hidden")
+			{
+				tf.m_flags = (filtercheck_field_flags)(tf.m_flags | filtercheck_field_flags::EPF_HIDDEN);
+			}
 		}
 
 	}
