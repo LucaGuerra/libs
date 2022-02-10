@@ -339,6 +339,7 @@ typedef struct scap_open_args
 	                                                         // You can provide additional comm
 	                                                         // values via scap_suppress_events_comm().
 	bool udig; ///< If true, UDIG will be used for event capture. Otherwise, the kernel driver will be used.
+	bool gvisor;
 	interesting_ppm_sc_set ppm_sc_of_interest;
 	
 	source_plugin_info* input_plugin; ///< use this to configure a source plugin that will produce the events for this capture

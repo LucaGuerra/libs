@@ -494,6 +494,7 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 	oargs.proc_callback = NULL;
 	oargs.proc_callback_context = NULL;
 	oargs.udig = m_udig;
+	oargs.gvisor = m_gvisor;
 
 	fill_syscalls_of_interest(&oargs);
 
@@ -551,6 +552,12 @@ void sinsp::open(uint32_t timeout_ms)
 void sinsp::open_udig(uint32_t timeout_ms)
 {
 	m_udig = true;
+	open_live_common(timeout_ms, SCAP_MODE_LIVE);
+}
+
+void sinsp::open_gvisor(uint32_t timeout_ms)
+{
+	m_gvisor = true;
 	open_live_common(timeout_ms, SCAP_MODE_LIVE);
 }
 

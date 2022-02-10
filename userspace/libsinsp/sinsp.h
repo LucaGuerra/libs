@@ -251,6 +251,8 @@ public:
 	void open_udig(uint32_t timeout_ms = SCAP_TIMEOUT_MS);
 	void open_nodriver();
 
+	void open_gvisor(uint32_t timeout_ms = SCAP_TIMEOUT_MS);
+
 	/*!
 	  \brief Ends a capture and release all resources.
 	*/
@@ -1097,6 +1099,7 @@ private:
 	std::string m_input_filename;
 	bool m_bpf;
 	bool m_udig;
+	bool m_gvisor;
 	bool m_is_windows;
 	std::string m_bpf_probe;
 	bool m_isdebug_enabled;
