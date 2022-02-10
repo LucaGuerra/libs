@@ -75,6 +75,7 @@ list(APPEND targetfiles
 	scap_procs.c
 	scap_userlist.c
 	syscall_info_table.c
+	gvisor_vtable.c
 	../../driver/dynamic_params_table.c
 	../../driver/event_table.c
 	../../driver/flags_table.c)

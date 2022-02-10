@@ -44,6 +44,7 @@ limitations under the License.
 #include "../../driver/ppm_ringbuffer.h"
 #include "scap_savefile.h"
 #include "scap-int.h"
+#include "scap_vtable.h"
 #if defined(HAS_CAPTURE) && !defined(_WIN32) && !defined(CYGWING_AGENT)
 #include "scap_bpf.h"
 #endif
@@ -822,6 +823,145 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 }
 #endif // !defined(HAS_CAPTURE) || defined(CYGWING_AGENT)
 
+extern struct scap_vtable gvisor_vtable;
+
+scap_t* scap_open_gvisor_int(char *error,
+			      int32_t *rc,
+			      proc_entry_callback proc_callback,
+			      void* proc_callback_context,
+			      bool import_users,
+			      const char **suppressed_comms)
+{
+	char filename[SCAP_MAX_PATH_SIZE];
+	scap_t* handle = NULL;
+
+	//
+	// Allocate the handle
+	//
+	handle = (scap_t*) calloc(sizeof(scap_t), 1);
+	if(!handle)
+	{
+		snprintf(error, SCAP_LASTERR_SIZE, "error allocating the scap_t structure");
+		*rc = SCAP_FAILURE;
+		return NULL;
+	}
+
+	handle->m_vtable = &gvisor_vtable;
+	scap_ctx *ctx = handle->m_vtable->alloc(error);
+
+#if 0
+	//
+	// Preliminary initializations
+	//
+	handle->m_mode = SCAP_MODE_LIVE;
+	handle->m_udig = false;
+	handle->m_bpf = false;
+	// handle->m_gvisor = true; // should not be necessary
+
+	handle->m_ncpus = 1;
+	handle->m_ndevs = 0;
+
+	//
+	// Extract machine information
+	//
+	handle->m_proc_callback = proc_callback;
+	handle->m_proc_callback_context = proc_callback_context;
+
+	handle->m_machine_info.num_cpus = sysconf(_SC_NPROCESSORS_ONLN); // ?? what if you run gVisor in a non-linux system?
+	handle->m_machine_info.memory_size_bytes = (uint64_t)sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE);
+
+	gethostname(handle->m_machine_info.hostname, sizeof(handle->m_machine_info.hostname) / sizeof(handle->m_machine_info.hostname[0]));
+	handle->m_machine_info.reserved1 = 0;
+	handle->m_machine_info.reserved2 = 0;
+	handle->m_machine_info.reserved3 = 0;
+	handle->m_machine_info.reserved4 = 0;
+
+	//
+	// Create the interface list
+	//
+	// PUT VTABLE HERE
+	if((*rc = scap_create_iflist(handle)) != SCAP_SUCCESS)
+	{
+		scap_close(handle);
+		snprintf(error, SCAP_LASTERR_SIZE, "error creating the interface list");
+		return NULL;
+	}
+
+	//
+	// Create the user list
+	//
+	// PUT VTABLE HERE
+	if(import_users)
+	{
+		if((*rc = scap_create_userlist(handle)) != SCAP_SUCCESS)
+		{
+			scap_close(handle);
+			snprintf(error, SCAP_LASTERR_SIZE, "error creating the interface list");
+			return NULL;
+		}
+	}
+	else
+	{
+		handle->m_userlist = NULL;
+	}
+
+	handle->m_fake_kernel_proc.tid = -1;
+	handle->m_fake_kernel_proc.pid = -1;
+	handle->m_fake_kernel_proc.flags = 0;
+	snprintf(handle->m_fake_kernel_proc.comm, SCAP_MAX_PATH_SIZE, "kernel");
+	snprintf(handle->m_fake_kernel_proc.exe, SCAP_MAX_PATH_SIZE, "kernel");
+	handle->m_fake_kernel_proc.args[0] = 0;
+	handle->refresh_proc_table_when_saving = true;
+
+	handle->m_suppressed_comms = NULL;
+	handle->m_num_suppressed_comms = 0;
+	handle->m_suppressed_tids = NULL;
+	handle->m_num_suppressed_evts = 0;
+	handle->m_buffer_empty_wait_time_us = BUFFER_EMPTY_WAIT_TIME_US_START;
+
+	if ((*rc = copy_comms(handle, suppressed_comms)) != SCAP_SUCCESS)
+	{
+		scap_close(handle);
+		snprintf(error, SCAP_LASTERR_SIZE, "error copying suppressed comms");
+		return NULL;
+	}
+
+	//
+	// Additional initializations
+	//
+	handle->m_devs[0].m_lastreadsize = 0;
+	handle->m_devs[0].m_sn_len = 0;
+	scap_stop_dropping_mode(handle);
+
+	//
+	// Create the process list
+	//
+	// PUT VTABLE HERE
+	error[0] = '\0';
+	snprintf(filename, sizeof(filename), "%s/proc", scap_get_host_root());
+	char procerr[SCAP_LASTERR_SIZE];
+	if((*rc = scap_proc_scan_proc_dir(handle, filename, procerr)) != SCAP_SUCCESS)
+	{
+		scap_close(handle);
+		snprintf(error, SCAP_LASTERR_SIZE, "%s", procerr);
+		return NULL;
+	}
+
+	//
+	// Now that /proc parsing has been done, start the capture
+	//
+	// PUT VTABLE HERE
+	if(udig_begin_capture(handle, error) != SCAP_SUCCESS) // vtable here (start_capture)
+	{
+		scap_close(handle); // vtable here (close)
+		return NULL;
+	}
+#endif
+	return handle;
+
+}
+
+
 scap_t* scap_open_offline_int(scap_reader_t* reader,
 			      char *error,
 			      int32_t *rc,
@@ -1208,7 +1348,15 @@ scap_t* scap_open(scap_open_args args, char *error, int32_t *rc)
 						args.import_users,
 						args.suppressed_comms);
 		}
-		else
+		else if (args.gvisor)
+		{
+			return scap_open_gvisor_int(error, 
+						rc, 
+						args.proc_callback,
+						args.proc_callback_context,
+						args.import_users,
+						args.suppressed_comms);
+		}
 		{
 			return scap_open_live_int(error, rc, args.proc_callback,
 						args.proc_callback_context,

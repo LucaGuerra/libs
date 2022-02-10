@@ -215,6 +215,9 @@ struct scap
 	// If the schema version is unavailable for whatever reason,
 	// it's equivalent to version 0.0.0
 	uint64_t m_schema_version;
+
+	// Current scap_vtable experiment 
+	struct scap_vtable* m_vtable;
 };
 
 typedef enum ppm_dumper_type
