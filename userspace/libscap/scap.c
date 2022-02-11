@@ -848,7 +848,7 @@ scap_t* scap_open_gvisor_int(char *error,
 
 	handle->m_vtable = &gvisor_vtable;
 	scap_ctx *ctx = handle->m_vtable->alloc(error);
-
+	handle->m_vtable->open(ctx, NULL, false);
 #if 0
 	//
 	// Preliminary initializations
