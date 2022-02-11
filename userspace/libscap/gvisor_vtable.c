@@ -13,10 +13,11 @@ struct scap_gvisor_ctx {
     char *m_lasterr;
 
     int m_listenfd;
+    int m_epollfd;
     // thread accepting incoming connections 
     pthread_t m_accept_thread;
-    // threads 
-    pthread_t m_polling_thread;
+    
+    // polling should be delegated to next()
     // epoll stuff here would be nice!
 };
 
@@ -40,14 +41,6 @@ static int32_t scap_gvisor_listen(struct scap_gvisor_ctx *ctx)
 	memset(&address, 0, sizeof(address));
 	address.sun_family = AF_UNIX;
 	snprintf(address.sun_path, sizeof(GVISOR_SOCKET), GVISOR_SOCKET);
-
-    puts("Unlinking any previous unix socket");
-	ret = unlink(GVISOR_SOCKET);
-	if(ret != 0 && ret != -ENOENT && ret != -EPERM)
-	{
-		perror("error unlinking unix socket");
-		return -1;
-	}
 
     puts("Binding unix socket");
 	old_umask = umask(0);
@@ -85,8 +78,10 @@ void *accept_thread(void *args)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// producer (gvisor) -> unix socket -> accept thread -> epoll -> adapter unpacks message
 
 // scap_gvisor_open must:
+// - initialize scap_devices. the m_fd member is initialized with memfd_create syscall.
 // - create a unix socket (deleting the previous one if any) 
 // - prepare the socket to accept connections via bind and listen
 // - spawn a thread accepting and handling connections 
@@ -96,7 +91,7 @@ int32_t scap_gvisor_open(scap_ctx* ctx, const void *param, bool import_users)
     struct scap_gvisor_ctx* gvisor_ctx = (struct scap_gvisor_ctx *)ctx;
 
     gvisor_ctx->m_listenfd = scap_gvisor_listen(gvisor_ctx);
-    
+
 }
 
 scap_ctx *scap_gvisor_alloc(char *lasterr_ptr) 
@@ -117,10 +112,17 @@ void scap_gvisor_free(scap_ctx *ctx)
     free(ctx);
 }
 
+int32_t scap_gvisor_start_capture(scap_ctx* ctx)
+{
+    struct scap_gvisor_ctx *gvisor_ctx = (struct scap_gvisor_ctx *)ctx;
+
+}
+
 struct scap_vtable gvisor_vtable = {
     .mode = SCAP_MODE_LIVE,
-
-    .open = scap_gvisor_open,
     .alloc = scap_gvisor_alloc,
+    .open = scap_gvisor_open,
+    .start_capture = scap_gvisor_start_capture,
     .free = scap_gvisor_free,
+
 };
