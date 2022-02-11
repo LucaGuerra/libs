@@ -839,7 +839,7 @@ scap_t* scap_open_gvisor_int(char *error,
 	//
 	// Allocate the handle
 	//
-	handle = (scap_t*) calloc(sizeof(scap_t), 1);
+	handle = (scap_t*) calloc(1, sizeof(scap_t));
 	if(!handle)
 	{
 		snprintf(error, SCAP_LASTERR_SIZE, "error allocating the scap_t structure");
@@ -1592,6 +1592,10 @@ void scap_close(scap_t* handle)
 	//
 	// Release the handle
 	//
+	if(handle->m_vtable != NULL)
+	{
+		handle->m_vtable->free(handle->ctx);
+	}
 	free(handle);
 }
 

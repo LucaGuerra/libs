@@ -8,16 +8,20 @@ typedef void scap_ctx;
 struct scap_vtable {
 	scap_mode_t mode;
 
+	// alloc allocates a scap_ctx structure and initializes its fields
 	scap_ctx *(*alloc)(char *lasterr_ptr);
 
+	// deallocate the previously alloc'ed scap_ctx when closing scap 
 	void (*free)(scap_ctx* ctx);
 
+	// open opens the source of syscall before retrieving the state of the system and starting the capture
 	int32_t (*open)(scap_ctx* ctx, const void *param, bool import_users);
 
 	int32_t (*close)(scap_ctx* ctx);
 
 	int32_t (*next)(scap_ctx* ctx, scap_evt **pevent, uint16_t *pcpuid);
 
+	// start_capture begins syscall event collection 
 	int32_t (*start_capture)(scap_ctx* ctx);
 
 	int32_t (*stop_capture)(scap_ctx* ctx);
