@@ -848,9 +848,14 @@ scap_t* scap_open_gvisor_int(char *error,
 	}
 
 	handle->m_vtable = &gvisor_vtable;
-	scap_ctx *ctx = handle->m_vtable->alloc(error);
-	handle->m_vtable->open(ctx, NULL, false);
-#if 0
+	handle->m_ctx = handle->m_vtable->alloc(error);
+	if(handle->m_ctx == NULL)
+	{
+		return SCAP_FAILURE;
+	}
+
+	handle->m_vtable->open(handle->m_ctx, NULL, false);
+
 	//
 	// Preliminary initializations
 	//
@@ -862,21 +867,7 @@ scap_t* scap_open_gvisor_int(char *error,
 	handle->m_ncpus = 1;
 	handle->m_ndevs = 0;
 
-	//
-	// Extract machine information
-	//
-	handle->m_proc_callback = proc_callback;
-	handle->m_proc_callback_context = proc_callback_context;
-
-	handle->m_machine_info.num_cpus = sysconf(_SC_NPROCESSORS_ONLN); // ?? what if you run gVisor in a non-linux system?
-	handle->m_machine_info.memory_size_bytes = (uint64_t)sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGESIZE);
-
-	gethostname(handle->m_machine_info.hostname, sizeof(handle->m_machine_info.hostname) / sizeof(handle->m_machine_info.hostname[0]));
-	handle->m_machine_info.reserved1 = 0;
-	handle->m_machine_info.reserved2 = 0;
-	handle->m_machine_info.reserved3 = 0;
-	handle->m_machine_info.reserved4 = 0;
-
+#if 0
 	//
 	// Create the interface list
 	//
@@ -905,6 +896,7 @@ scap_t* scap_open_gvisor_int(char *error,
 	{
 		handle->m_userlist = NULL;
 	}
+#endif
 
 	handle->m_fake_kernel_proc.tid = -1;
 	handle->m_fake_kernel_proc.pid = -1;
@@ -930,14 +922,15 @@ scap_t* scap_open_gvisor_int(char *error,
 	//
 	// Additional initializations
 	//
-	handle->m_devs[0].m_lastreadsize = 0;
-	handle->m_devs[0].m_sn_len = 0;
-	scap_stop_dropping_mode(handle);
+	//handle->m_devs[0].m_lastreadsize = 0;
+	//handle->m_devs[0].m_sn_len = 0;
+	//scap_stop_dropping_mode(handle);
 
 	//
 	// Create the process list
 	//
 	// PUT VTABLE HERE
+#if 0
 	error[0] = '\0';
 	snprintf(filename, sizeof(filename), "%s/proc", scap_get_host_root());
 	char procerr[SCAP_LASTERR_SIZE];
@@ -947,19 +940,18 @@ scap_t* scap_open_gvisor_int(char *error,
 		snprintf(error, SCAP_LASTERR_SIZE, "%s", procerr);
 		return NULL;
 	}
+#endif
 
 	//
 	// Now that /proc parsing has been done, start the capture
 	//
 	// PUT VTABLE HERE
-	if(udig_begin_capture(handle, error) != SCAP_SUCCESS) // vtable here (start_capture)
+	if(handle->m_vtable->start_capture(handle->m_ctx) != SCAP_SUCCESS) // vtable here (start_capture)
 	{
-		scap_close(handle); // vtable here (close)
+		handle->m_vtable->close(handle->m_ctx);
 		return NULL;
 	}
-#endif
 	return handle;
-
 }
 
 
@@ -1594,7 +1586,7 @@ void scap_close(scap_t* handle)
 	//
 	if(handle->m_vtable != NULL)
 	{
-		handle->m_vtable->free(handle->ctx);
+		handle->m_vtable->free(handle->m_ctx);
 	}
 	free(handle);
 }
@@ -2190,6 +2182,10 @@ int32_t scap_next(scap_t* handle, OUT scap_evt** pevent, OUT uint16_t* pcpuid)
 		res = scap_next_offline(handle, pevent, pcpuid);
 		break;
 	case SCAP_MODE_LIVE:
+		if(handle->m_vtable)
+		{
+			res = handle->m_vtable->next(handle->m_ctx, pevent, pcpuid);
+		}
 		if(handle->m_udig)
 		{
 			res = scap_next_udig(handle, pevent, pcpuid);

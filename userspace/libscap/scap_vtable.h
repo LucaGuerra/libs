@@ -44,4 +44,6 @@ struct scap_vtable {
 	// originally many functions, done this as a research/understanding exercise
     int32_t (*fill_scap_proc)(scap_t* handle, char *error);
 
+	// usually behind scap_pid_ops
+	int32_t (*getpid_global)(scap_ctx* ctx, int64_t *pid);
 };

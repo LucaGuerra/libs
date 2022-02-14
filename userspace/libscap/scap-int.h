@@ -222,7 +222,7 @@ struct scap
 	// Current scap_vtable experiment 
 	struct scap_vtable* m_vtable;
 	// Context for the specific source of system calls (e.g kmod, bpf, gvisor ...)
-	struct scap_ctx* ctx;
+	struct scap_ctx* m_ctx;
 };
 
 typedef enum ppm_dumper_type

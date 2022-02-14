@@ -113,7 +113,8 @@ if (CMAKE_SYSTEM_NAME MATCHES "SunOS")
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
 	target_link_libraries(scap
 		elf
-		rt)
+		rt
+		pthread)
 elseif (WIN32)
 	target_link_libraries(scap
 		Ws2_32.lib)
