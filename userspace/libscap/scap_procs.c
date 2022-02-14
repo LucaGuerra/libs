@@ -37,6 +37,7 @@ limitations under the License.
 #include "scap.h"
 #include "../../driver/ppm_ringbuffer.h"
 #include "scap-int.h"
+#include "scap_vtable.h"
 
 #if defined(CYGWING_AGENT) || defined(_WIN32)
 #include <io.h>
@@ -1225,6 +1226,11 @@ int32_t scap_proc_scan_proc_dir(scap_t* handle, char* procdirname, char *error)
 
 int32_t scap_getpid_global(scap_t* handle, int64_t* pid)
 {
+	if(handle->m_vtable)
+	{
+		return handle->m_vtable->getpid_global(handle->m_ctx, pid);
+	}
+
 #if !defined(CYGWING_AGENT) && !defined(_WIN32)
 	if(handle->m_mode != SCAP_MODE_LIVE)
 	{
