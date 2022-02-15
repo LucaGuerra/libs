@@ -941,7 +941,6 @@ scap_t* scap_open_gvisor_int(char *error,
 		return NULL;
 	}
 #endif
-
 	//
 	// Now that /proc parsing has been done, start the capture
 	//
