@@ -23,6 +23,9 @@ struct scap_gvisor_ctx {
     // epoll stuff here would be nice!
 };
 
+#ifdef __cplusplus
+extern "C"{
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Internal functions 
@@ -247,3 +250,7 @@ const struct scap_vtable gvisor_vtable = {
 
 	.getpid_global = scap_gvisor_getpid_global,
 };
+
+#ifdef __cplusplus
+}
+#endif
