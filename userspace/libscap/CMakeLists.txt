@@ -75,7 +75,6 @@ list(APPEND targetfiles
 	scap_procs.c
 	scap_userlist.c
 	syscall_info_table.c
-	gvisor_vtable.c
 	../../driver/dynamic_params_table.c
 	../../driver/event_table.c
 	../../driver/flags_table.c)
@@ -100,8 +99,13 @@ if(CYGWIN OR WIN32)
 		windows_hal.c)
 endif()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory(scap_gvisor)
+
 add_library(scap STATIC
 	${targetfiles})
+
+target_link_libraries(scap scap_gvisor)
 
 if(USE_BUNDLED_ZLIB AND NOT MINIMAL_BUILD)
 	add_dependencies(scap zlib)

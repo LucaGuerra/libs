@@ -235,7 +235,7 @@ int32_t scap_gvisor_getpid_global(scap_ctx* ctx, int64_t *pid)
 	return SCAP_SUCCESS;
 }
 
-struct scap_vtable gvisor_vtable = {
+const struct scap_vtable gvisor_vtable = {
     .mode = SCAP_MODE_LIVE,
     .alloc = scap_gvisor_alloc,
     .open = scap_gvisor_open,
