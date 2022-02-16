@@ -101,6 +101,9 @@ int32_t scap_gvisor_getpid_global(scap_ctx* ctx, int64_t *pid)
 	return SCAP_SUCCESS;
 }
 
+#ifdef __cplusplus
+}
+#endif
 extern const struct scap_vtable gvisor_vtable = {
     .mode = SCAP_MODE_LIVE,
     .alloc = scap_gvisor_alloc,
@@ -112,7 +115,3 @@ extern const struct scap_vtable gvisor_vtable = {
 	.stop_capture = scap_gvisor_stop_capture,
 	.getpid_global = scap_gvisor_getpid_global,
 };
-
-#ifdef __cplusplus
-}
-#endif
