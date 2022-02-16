@@ -19,16 +19,12 @@ public:
     int32_t stop_capture();
 
     int32_t next(scap_evt **pevent, uint16_t *pcpuid);
-
-    int get_listenfd();
-    int get_epollfd();
-
+    
 private:
+    void accept_thread();
+
     char *m_lasterr;
     int m_listenfd;
     int m_epollfd;
-
-    pthread_t m_accept_thread;
-
-    void set_lasterr(std::string error);
+    std::thread m_accept_thread;
 };

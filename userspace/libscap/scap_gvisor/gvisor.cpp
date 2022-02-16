@@ -9,36 +9,6 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
-void *accept_thread(void *args)
-{
-    struct scap_gvisor *gvisor_ctx = (struct scap_gvisor *)args;
-
-	while(true)
-	{
-		int client = accept(gvisor_ctx->get_listenfd(), NULL, NULL);
-		if (client < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			// TODO err handling
-			printf("ERR: accept_thread %d\n", client);
-			return NULL;
-		}
-
-		struct epoll_event evt;
-		evt.data.fd = client;
-		evt.events = EPOLLIN;
-		if(epoll_ctl(gvisor_ctx->get_epollfd(), EPOLL_CTL_ADD, client, &evt) < 0)
-		{
-			perror("err accept_thread epoll_ctl");
-			return NULL;
-		}
-	}
-
-}
-
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
@@ -104,11 +74,7 @@ int32_t scap_gvisor::close()
 
 int32_t scap_gvisor::start_capture()
 {
-    pthread_attr_t attr;
-
-	pthread_attr_init(&attr);
-	pthread_create(&m_accept_thread, &attr, accept_thread, this);
-	pthread_attr_destroy(&attr);
+	m_accept_thread = std::thread([this]{accept_thread();});
     return SCAP_SUCCESS;
 }
 
@@ -172,12 +138,29 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
     return SCAP_SUCCESS;
 }
 
-int scap_gvisor::get_listenfd()
+void scap_gvisor::accept_thread()
 {
-    return m_listenfd;
-}
+	while(true)
+	{
+		int client = accept(m_listenfd, NULL, NULL);
+		if (client < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			// TODO err handling
+			printf("ERR: accept_thread %d\n", client);
+			return;
+		}
 
-int scap_gvisor::get_epollfd()
-{
-    return m_epollfd;
+		struct epoll_event evt;
+		evt.data.fd = client;
+		evt.events = EPOLLIN;
+		if(epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client, &evt) < 0)
+		{
+			perror("err accept_thread epoll_ctl");
+			return;
+		}
+	}
 }
