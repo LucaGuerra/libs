@@ -67,6 +67,7 @@ void scap_gvisor_free(scap_ctx *ctx)
 
 int32_t scap_gvisor_start_capture(scap_ctx* ctx)
 {
+	printf("scap_gvisor_start_capture()\n");
     scap_gvisor *gvisor_ctx = (scap_gvisor*)ctx;
 	return gvisor_ctx->start_capture();
 }
@@ -81,7 +82,9 @@ int32_t scap_gvisor_close(scap_ctx* ctx)
 
 int32_t scap_gvisor_stop_capture(scap_ctx* ctx)
 {
-	return SCAP_SUCCESS;
+	printf("scap_gvisor_stop_capture\n");
+    scap_gvisor *gvisor_ctx = (scap_gvisor*)ctx;
+	return gvisor_ctx->stop_capture();
 }
 
 //  \return SCAP_SUCCESS if the call is successful and pevent and pcpuid contain valid data.

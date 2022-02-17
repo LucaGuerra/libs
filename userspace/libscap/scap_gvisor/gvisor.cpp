@@ -33,7 +33,6 @@ void accept_thread(int listenfd, int epollfd)
 		nfds = epoll_wait(acceptfd, &new_connection_evt, 1, TIMEOUT_MILLIS);
 		if(nfds == 0)
 		{
-			printf("timeout\n");
 			continue;
 		}
 		else if(nfds == -1)
@@ -169,11 +168,19 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 			snprintf(m_lasterr, SCAP_LASTERR_SIZE, "error reading from gvisor: %s", strerror(errno));
 			return SCAP_FAILURE;
 		}
+		else if(nbytes == 0)
+		{
+			// TCP connection ended normally
+			// closing the socket also remove it frome epollfd
+			::close(evt.data.fd);
+			return SCAP_SUCCESS;
+		}
 
 		// it appears that in the gVisor protocol the data is marshalled with its in-memory repesentation
 		uint32_t message_size = *((uint32_t *)message);
 
 		printf("Received event. Size %08x\n", message_size);
+		return SCAP_SUCCESS;
 	}
 
     if ((evt.events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
