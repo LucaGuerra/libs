@@ -9,9 +9,67 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
+#define TIMEOUT_MILLIS 500
+
+static std::atomic<bool> stop_thread;
+
+void accept_thread(int listenfd, int epollfd)
+{
+	// create accept fd to perform timed accepts and check stop time by time
+	int acceptfd = epoll_create(1);
+	struct epoll_event accept_evt;
+	accept_evt.data.fd = listenfd;
+	accept_evt.events = EPOLLIN;
+	if(epoll_ctl(acceptfd, EPOLL_CTL_ADD, listenfd, &accept_evt) < 0)
+	{
+		perror("ERR: accept thread acceptfd");
+		return;
+	}
+
+	while(!stop_thread.load())
+	{
+		int nfds;
+		struct epoll_event new_connection_evt;
+		nfds = epoll_wait(acceptfd, &new_connection_evt, 1, TIMEOUT_MILLIS);
+		if(nfds == 0)
+		{
+			printf("timeout\n");
+			continue;
+		}
+		else if(nfds == -1)
+		{
+			// handle error
+			perror("epoll_wait accept");
+			return;
+		}
+
+		int client = accept(listenfd, NULL, NULL);
+		if (client < 0)
+		{
+			if (errno == EINTR)
+			{
+				continue;
+			}
+			// TODO err handling
+			printf("ERR: accept_thread %d\n", client);
+			return;
+		}
+
+		struct epoll_event evt;
+		evt.data.fd = client;
+		evt.events = EPOLLIN;
+		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, client, &evt) < 0)
+		{
+			perror("err accept_thread epoll_ctl");
+			return;
+		}		
+	}
+}
+
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
+	stop_thread = false;
 }
 
 int32_t scap_gvisor::open()
@@ -74,12 +132,14 @@ int32_t scap_gvisor::close()
 
 int32_t scap_gvisor::start_capture()
 {
-	m_accept_thread = std::thread([this]{accept_thread();});
+	m_accept_thread = std::thread(accept_thread, m_listenfd, m_epollfd);
+	m_accept_thread.detach();
     return SCAP_SUCCESS;
 }
 
 int32_t scap_gvisor::stop_capture()
 {
+	stop_thread = true;
     return SCAP_SUCCESS;
 }
 
@@ -138,29 +198,3 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
     return SCAP_SUCCESS;
 }
 
-void scap_gvisor::accept_thread()
-{
-	while(true)
-	{
-		int client = accept(m_listenfd, NULL, NULL);
-		if (client < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			// TODO err handling
-			printf("ERR: accept_thread %d\n", client);
-			return;
-		}
-
-		struct epoll_event evt;
-		evt.data.fd = client;
-		evt.events = EPOLLIN;
-		if(epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client, &evt) < 0)
-		{
-			perror("err accept_thread epoll_ctl");
-			return;
-		}
-	}
-}
