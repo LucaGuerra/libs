@@ -7,8 +7,9 @@ add_library(scap_gvisor STATIC
     pkg/sentry/seccheck/points/common.pb.cc
     pkg/sentry/seccheck/points/container.pb.cc
     pkg/sentry/seccheck/points/sentry.pb.cc
-    gvisor_vtable.cpp
+    gvisor_parsers.cpp
     gvisor.cpp
+    gvisor_vtable.cpp
 )
 
 target_link_libraries(scap_gvisor ${PROTOBUF_LIB})
