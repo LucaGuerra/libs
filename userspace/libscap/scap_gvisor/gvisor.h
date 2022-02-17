@@ -22,10 +22,10 @@ public:
     int32_t next(scap_evt **pevent, uint16_t *pcpuid);
     
 private:
-
     char *m_lasterr;
     int m_listenfd;
     int m_epollfd;
     std::thread m_accept_thread;
 };
 
+void parse_gvisor_proto(const char *buf, int bytes, scap_evt **pevent);
