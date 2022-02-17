@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string>
 #include <thread> 
+#include <atomic>
 
 #include "scap.h"
 
@@ -21,7 +22,6 @@ public:
     int32_t next(scap_evt **pevent, uint16_t *pcpuid);
     
 private:
-    void accept_thread();
 
     char *m_lasterr;
     int m_listenfd;
