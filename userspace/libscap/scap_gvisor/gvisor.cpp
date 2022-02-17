@@ -9,39 +9,11 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
-#define TIMEOUT_MILLIS 500
-
-static std::atomic<bool> stop_thread;
 
 void accept_thread(int listenfd, int epollfd)
 {
-	// create accept fd to perform timed accepts and check stop time by time
-	int acceptfd = epoll_create(1);
-	struct epoll_event accept_evt;
-	accept_evt.data.fd = listenfd;
-	accept_evt.events = EPOLLIN;
-	if(epoll_ctl(acceptfd, EPOLL_CTL_ADD, listenfd, &accept_evt) < 0)
+	while(true)
 	{
-		perror("ERR: accept thread acceptfd");
-		return;
-	}
-
-	while(!stop_thread.load())
-	{
-		int nfds;
-		struct epoll_event new_connection_evt;
-		nfds = epoll_wait(acceptfd, &new_connection_evt, 1, TIMEOUT_MILLIS);
-		if(nfds == 0)
-		{
-			continue;
-		}
-		else if(nfds == -1)
-		{
-			// handle error
-			perror("epoll_wait accept");
-			return;
-		}
-
 		int client = accept(listenfd, NULL, NULL);
 		if (client < 0)
 		{
@@ -68,7 +40,6 @@ void accept_thread(int listenfd, int epollfd)
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
-	stop_thread = false;
 }
 
 int32_t scap_gvisor::open()
@@ -138,7 +109,6 @@ int32_t scap_gvisor::start_capture()
 
 int32_t scap_gvisor::stop_capture()
 {
-	stop_thread = true;
     return SCAP_SUCCESS;
 }
 
