@@ -2295,31 +2295,38 @@ int32_t scap_stop_capture(scap_t* handle)
 	//
 	if(handle->m_mode == SCAP_MODE_LIVE)
 	{
-		//
-		// Disable capture on all the rings
-		//
-		for(j = 0; j < handle->m_ndevs; j++)
+		if(handle->m_vtable != NULL)
 		{
-			if(handle->m_bpf)
+			return handle->m_vtable->stop_capture(handle->m_ctx);
+		}
+		else 
+		{
+			//
+			// Disable capture on all the rings
+			//
+			for(j = 0; j < handle->m_ndevs; j++)
 			{
-#ifndef _WIN32
-				return scap_bpf_stop_capture(handle);
-#endif
-			}
-			else if(handle->m_udig)
-			{
-				udig_stop_capture(handle);
-			}
-			else
-			{
-#ifndef _WIN32
-				if(ioctl(handle->m_devs[j].m_fd, PPM_IOCTL_DISABLE_CAPTURE))
+				if(handle->m_bpf)
 				{
-					snprintf(handle->m_lasterr,	SCAP_LASTERR_SIZE, "scap_stop_capture failed for device %" PRIu32, j);
-					ASSERT(false);
-					return SCAP_FAILURE;
+	#ifndef _WIN32
+					return scap_bpf_stop_capture(handle);
+	#endif
 				}
-#endif
+				else if(handle->m_udig)
+				{
+					udig_stop_capture(handle);
+				}
+				else
+				{
+	#ifndef _WIN32
+					if(ioctl(handle->m_devs[j].m_fd, PPM_IOCTL_DISABLE_CAPTURE))
+					{
+						snprintf(handle->m_lasterr,	SCAP_LASTERR_SIZE, "scap_stop_capture failed for device %" PRIu32, j);
+						ASSERT(false);
+						return SCAP_FAILURE;
+					}
+	#endif
+				}
 			}
 		}
 	}
