@@ -12,6 +12,7 @@ add_library(scap_gvisor STATIC
     gvisor_vtable.cpp
 )
 
+add_dependencies(scap_gvisor protobuf)
 target_link_libraries(scap_gvisor ${PROTOBUF_LIB})
 
 set(GVISOR_COMMIT "d25421d8d247a83293b7871d105c553f688b836e")
@@ -47,13 +48,13 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.cc
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.h
     COMMENT "Generate gVisor protobuf definitions"
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/common.proto
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.proto
     COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.proto
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/container.proto
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.proto
     COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.proto
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sentry.proto
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.proto
     COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.proto
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/syscall.proto
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.proto
     COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.proto
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
