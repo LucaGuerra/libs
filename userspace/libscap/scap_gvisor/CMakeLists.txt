@@ -38,14 +38,14 @@ file(DOWNLOAD
 
 add_custom_command(
     OUTPUT
-    ${CMAKE_CURRENT_BINARY_DIR}/common.pb.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/common.pb.h
-    ${CMAKE_CURRENT_BINARY_DIR}/container.pb.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/container.pb.h
-    ${CMAKE_CURRENT_BINARY_DIR}/sentry.pb.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/sentry.pb.h
-    ${CMAKE_CURRENT_BINARY_DIR}/syscall.pb.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/syscall.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.pb.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.pb.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.pb.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.pb.h
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.h
     COMMENT "Generate gVisor protobuf definitions"
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/common.proto
     COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=. ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.proto
