@@ -2183,7 +2183,7 @@ int32_t scap_next(scap_t* handle, OUT scap_evt** pevent, OUT uint16_t* pcpuid)
 		{
 			res = handle->m_vtable->next(handle->m_ctx, pevent, pcpuid);
 		}
-		if(handle->m_udig)
+		else if(handle->m_udig)
 		{
 			res = scap_next_udig(handle, pevent, pcpuid);
 		}
