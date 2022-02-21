@@ -28,4 +28,4 @@ private:
     std::thread m_accept_thread;
 };
 
-void parse_gvisor_proto(const char *buf, int bytes, scap_evt **pevent);
+int32_t parse_gvisor_proto(const char *buf, int bytes, scap_evt **pevent, char *lasterr);

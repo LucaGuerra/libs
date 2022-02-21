@@ -29,7 +29,6 @@ void accept_thread(int listenfd, int epollfd)
 		evt.events = EPOLLIN;
 		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, client, &evt) < 0)
 		{
-			perror("err accept_thread epoll_ctl");
 			return;
 		}		
 	}
@@ -51,33 +50,30 @@ int32_t scap_gvisor::open()
 
 	unlink(GVISOR_SOCKET);
 
-	puts("Creating unix socket");
 	sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1)
 	{
-		perror("error registering unix socket");
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot create unix socket: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
 	memset(&address, 0, sizeof(address));
 	address.sun_family = AF_UNIX;
 	snprintf(address.sun_path, sizeof(GVISOR_SOCKET), GVISOR_SOCKET);
 
-	puts("Binding unix socket");
 	old_umask = umask(0);
 	ret = bind(sock, (struct sockaddr *)&address, sizeof(address));
-	if(ret != 0)
+	if(ret == -1)
 	{
-		perror("error binding unix socket");
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot bind unix socket: %s", strerror(errno));
 		umask(old_umask);
 		return SCAP_FAILURE;
 	}
 
-	puts("Listening on unix socket");
 	ret = listen(sock, 128);
-	if(ret != 0)
+	if(ret == -1)
 	{
-		perror("error on listen");
 		umask(old_umask);
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot listen on gvisor unix socket: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
 
@@ -88,8 +84,12 @@ int32_t scap_gvisor::open()
 	 * Initilized the epoll fd
 	 */
 	m_epollfd = epoll_create(1);
+	if(m_epollfd == -1)
+	{
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot create epollfd socket: %s", strerror(errno));
+		return SCAP_FAILURE;
+	}
 
-    /* TODO: error handling */
     return SCAP_SUCCESS;
 }
 
@@ -119,13 +119,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 	int nfds = epoll_wait(m_epollfd, &evt, 1, -1);
 	if (nfds < 0)
 	{
-		perror("scap_gvisor_next epoll_wait error");
-		return SCAP_FAILURE;
-	}
-
-	if (nfds != 1)
-	{
-		printf("??? we only requested 1 event but we got %d\n", nfds);
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "epoll_wait error: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
 
@@ -133,19 +127,16 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 		ssize_t nbytes = read(evt.data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
 		if(nbytes == -1)
 		{
-			snprintf(m_lasterr, SCAP_LASTERR_SIZE, "error reading from gvisor: %s", strerror(errno));
+			snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Error reading from gvisor client: %s", strerror(errno));
 			return SCAP_FAILURE;
 		}
 		else if(nbytes == 0)
 		{
-			// TCP connection ended normally
-			// closing the socket also remove it frome epollfd
 			::close(evt.data.fd);
 			return SCAP_SUCCESS;
 		}
 
-        parse_gvisor_proto(message, nbytes, pevent);
-		return SCAP_SUCCESS;
+        return parse_gvisor_proto(message, nbytes, pevent, m_lasterr);
 	}
 
     if ((evt.events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
@@ -166,6 +157,5 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 		*/
 	}
 
-	//printf("scap_gvisor_next()\n");
     return SCAP_SUCCESS;
 }
