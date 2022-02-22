@@ -140,11 +140,12 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 		if(m_event_buf.m_ptr != NULL)
 		{
 			free(m_event_buf.m_ptr);
+			m_event_buf.m_ptr = NULL;
 			m_event_buf.m_size = 0;
 		}
 
         uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
-		*pevent = (scap_evt*)m_event_buf.m_ptr;
+		*pevent = m_event_buf.m_ptr;
 
 		return parse_status;
 	}

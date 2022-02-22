@@ -853,7 +853,7 @@ scap_t* scap_open_gvisor_int(char *error,
 	handle->m_vtable = &gvisor_vtable;
 	// uncomment here and comment the previous line to use the test inmemory generator
 	//handle->m_vtable = &inmem_generator_vtable;
-	handle->m_ctx = handle->m_vtable->alloc(error);
+	handle->m_ctx = handle->m_vtable->alloc(handle->m_lasterr);
 	if(handle->m_ctx == NULL)
 	{
 		return SCAP_FAILURE;

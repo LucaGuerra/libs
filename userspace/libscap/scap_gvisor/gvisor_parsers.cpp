@@ -137,11 +137,11 @@ int32_t unpack(const google::protobuf::Any& any, char *lasterr, scap_gvisor_buff
 }
 
 std::map<std::string, Callback> dispatchers = {
-	{"gvisor.syscall.Syscall", unpackSyscall<::gvisor::syscall::Syscall>},
-	{"gvisor.syscall.Read", unpackSyscall<::gvisor::syscall::Read>},
-	{"gvisor.syscall.Connect", unpackSyscall<::gvisor::syscall::Connect>},
+	//{"gvisor.syscall.Syscall", unpackSyscall<::gvisor::syscall::Syscall>},
+	//{"gvisor.syscall.Read", unpackSyscall<::gvisor::syscall::Read>},
+	//{"gvisor.syscall.Connect", unpackSyscall<::gvisor::syscall::Connect>},
 	{"gvisor.syscall.Open", parse_open},
-	{"gvisor.container.Start", unpack<::gvisor::container::Start>},
+	//{"gvisor.container.Start", unpack<::gvisor::container::Start>},
 };
 
 int32_t parse_gvisor_proto(const char* buf, int bytes, scap_gvisor_buffer *m_event_buf, char *lasterr)
@@ -188,7 +188,7 @@ int32_t parse_gvisor_proto(const char* buf, int bytes, scap_gvisor_buffer *m_eve
 	if(cb == nullptr)
 	{
 		snprintf(lasterr, SCAP_LASTERR_SIZE, "No callback registered for %s\n", name.c_str());
-		return SCAP_FAILURE;
+		return SCAP_TIMEOUT; // TODO: we cannot return failure, otherwise we stop looping through the events 
 	}
 
 	return cb(any, lasterr, m_event_buf);
