@@ -835,7 +835,6 @@ scap_t* scap_open_gvisor_int(char *error,
 			      bool import_users,
 			      const char **suppressed_comms)
 {
-	char filename[SCAP_MAX_PATH_SIZE];
 	scap_t* handle = NULL;
 
 	//
@@ -855,7 +854,8 @@ scap_t* scap_open_gvisor_int(char *error,
 	handle->m_ctx = handle->m_vtable->alloc(handle->m_lasterr);
 	if(handle->m_ctx == NULL)
 	{
-		return SCAP_FAILURE;
+		*rc = SCAP_FAILURE;
+		return NULL;
 	}
 
 	handle->m_vtable->open(handle->m_ctx, NULL, false);

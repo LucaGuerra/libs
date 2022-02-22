@@ -134,7 +134,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 		else if(nbytes == 0)
 		{
 			::close(evt.data.fd);
-			return SCAP_SUCCESS;
+			return SCAP_TIMEOUT;
 		}
 
 		if(m_event_buf.m_ptr != NULL)
