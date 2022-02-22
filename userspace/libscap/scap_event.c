@@ -200,6 +200,8 @@ size_t scap_event_create_v(scap_evt **pevent, size_t bufsize, enum ppm_event_typ
 
 			break;
 		case PT_BYTEBUF: /* A raw buffer of bytes not suitable for printing */
+			param_buf = va_arg(ap, char*);
+			param_size = va_arg(ap, uint64_t);
 
 			break;
 #if 0
