@@ -37,6 +37,7 @@ void accept_thread(int listenfd, int epollfd)
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
+	m_event_buf = { NULL, 0 };
 }
 
 int32_t scap_gvisor::open()
@@ -136,7 +137,16 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 			return SCAP_SUCCESS;
 		}
 
-        return parse_gvisor_proto(message, nbytes, pevent, m_lasterr);
+		if(m_event_buf.m_ptr != NULL)
+		{
+			free(m_event_buf.m_ptr);
+			m_event_buf.m_size = 0;
+		}
+
+        uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
+		*pevent = (scap_evt*)m_event_buf.m_ptr;
+
+		return parse_status;
 	}
 
     if ((evt.events & (EPOLLRDHUP | EPOLLHUP)) != 0) {

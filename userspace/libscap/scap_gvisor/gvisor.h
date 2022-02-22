@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdint.h>
 #include <string>
 #include <thread> 
@@ -9,6 +10,11 @@
 #define GVISOR_SOCKET "/tmp/123.sock" // make it configurable
 #define GVISOR_MAX_SANDBOXES 32
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
+
+struct scap_gvisor_buffer {
+    scap_evt *m_ptr;
+    size_t m_size;
+};
 
 class scap_gvisor {
 public:
@@ -26,6 +32,7 @@ private:
     int m_listenfd;
     int m_epollfd;
     std::thread m_accept_thread;
+    struct scap_gvisor_buffer m_event_buf;  
 };
 
-int32_t parse_gvisor_proto(const char *buf, int bytes, scap_evt **pevent, char *lasterr);
+int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_event_buf, char *lasterr);
