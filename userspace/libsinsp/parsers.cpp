@@ -2184,6 +2184,17 @@ void sinsp_parser::parse_open_openat_creat_exit(sinsp_evt *evt)
 	}
 	else if(etype == PPME_SYSCALL_OPENAT_2_X || etype == PPME_SYSCALL_OPENAT2_X)
 	{
+
+		printf("DEBUG: openat m_pevt");
+		for (int j = 0; j < 100; j++)
+		{
+			if (j % 16 == 0) {
+				printf("\n");
+			}
+			printf("%02x ", ((unsigned char*)evt->m_pevt)[j]);
+		}
+		printf("\n");
+
 		parinfo = evt->get_param(2);
 		name = parinfo->m_val;
 		namelen = parinfo->m_len;

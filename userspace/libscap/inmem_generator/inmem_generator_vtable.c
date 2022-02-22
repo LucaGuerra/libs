@@ -5,17 +5,21 @@
 
 #include "scap.h"
 #include "scap_vtable.h"
-#include "scap_event_helpers.h"
 
 struct scap_ig {
     scap_evt *evt;
+    int x;
 };
 
 
 int32_t scap_ig_open(scap_ctx* ctx, const void *param, bool import_users)
 {
 	printf("scap_ig_open()\n");
-    ((struct scap_ig*)ctx)->evt = NULL;
+    struct scap_ig* ig_ctx = ctx;
+
+    ig_ctx->evt = NULL;
+    ig_ctx->x = 0;
+
     return SCAP_SUCCESS;
 }
 
@@ -70,13 +74,13 @@ int32_t scap_ig_next(scap_ctx* ctx, scap_evt **pevent, uint16_t *pcpuid)
     uint32_t mode = 0;
     uint32_t dev = 0x17;
 
-    char *file_path = "/file/that/I/want/to/open";
-    uint16_t param_lengths[6] = {sizeof(fd), sizeof(dirfd), strlen(file_path) + 1, sizeof(file_flags), sizeof(mode), sizeof(dev)};
-
+    char file_path[256];
+    snprintf(file_path, 256, "%s-%02d", "/file/that/I/want/to/open", ig_ctx->x);
+    ig_ctx->x++;
 
     scap_evt *event = NULL;
 
-    scap_event_create_v(&event, 0, PPME_SYSCALL_OPENAT_2_X, fd, dirfd, "/file/that/I/want/to/open2", file_flags, mode, dev);
+    scap_event_create_v(&event, 0, PPME_SYSCALL_OPENAT_2_X, fd, dirfd, file_path, file_flags, mode, dev);
     event->ts = ts;
     event->tid = 31337;
 

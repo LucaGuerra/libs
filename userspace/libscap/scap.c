@@ -852,7 +852,7 @@ scap_t* scap_open_gvisor_int(char *error,
 
 	handle->m_vtable = &gvisor_vtable;
 	// uncomment here and comment the previous line to use the test inmemory generator
-	handle->m_vtable = &inmem_generator_vtable;
+	//handle->m_vtable = &inmem_generator_vtable;
 	handle->m_ctx = handle->m_vtable->alloc(error);
 	if(handle->m_ctx == NULL)
 	{
@@ -2916,6 +2916,7 @@ struct ppm_proclist_info* scap_get_threadlist(scap_t* handle)
 	}
 	else if(handle->m_vtable != NULL)
 	{
+		// TODO add vtable entry for this -- this lets the first gvisor poc work
 		struct ppm_proclist_info *info = malloc(sizeof(struct ppm_proclist_info));
 		info->n_entries = 0;
 		info->max_entries = 0;

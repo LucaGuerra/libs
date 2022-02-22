@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <stdarg.h>
+
+// #define _POSIX_C_SOURCE 199309L
+#include <time.h>
+
 #include <functional>
 #include <unordered_map>
 
@@ -10,7 +14,7 @@
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
 #include "pkg/sentry/seccheck/points/container.pb.h"
 
-typedef std::function<int32_t(const google::protobuf::Any& any, char *lasterr)> Callback;
+typedef std::function<int32_t(const google::protobuf::Any& any, char *lasterr, scap_gvisor_buffer *m_event_buf)> Callback;
 
 constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
 constexpr size_t maxEventSize = 300 * 1024;
@@ -43,7 +47,7 @@ std::unordered_map<std::string, std::pair<unsigned int, unsigned int>> gvisor_sy
 };
 
 template<class T>
-int32_t unpackSyscall(const google::protobuf::Any& any, char *lasterr)
+int32_t unpackSyscall(const google::protobuf::Any& any, char *lasterr, scap_gvisor_buffer *m_event_buf)
 {
 	T evt;
 	if(!any.UnpackTo(&evt))
@@ -76,8 +80,49 @@ int32_t unpackSyscall(const google::protobuf::Any& any, char *lasterr)
 	return SCAP_SUCCESS;
 }
 
+int32_t parse_open(const google::protobuf::Any& any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+{
+	gvisor::syscall::Open gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking open protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+
+	/* PPME_SYSCALL_OPEN_E */ //{"open", EC_FILE, EF_CREATES_FD | EF_MODIFIES_STATE, 0},
+	/* PPME_SYSCALL_OPEN_X */ //{"open", EC_FILE, EF_CREATES_FD | EF_MODIFIES_STATE, 5, {{"fd", PT_FD, PF_DEC}, {"name", PT_FSPATH, PF_NA}, {"flags", PT_FLAGS32, PF_HEX, file_flags}, {"mode", PT_UINT32, PF_OCT}, {"dev", PT_UINT32, PF_HEX} } },
+
+	enum ppm_event_type evt_type;
+
+	if (gvisor_evt.has_exit()) {
+		evt_type = PPME_SYSCALL_OPEN_X;
+		
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+			gvisor_evt.fd(), gvisor_evt.pathname().c_str(), gvisor_evt.flags(), gvisor_evt.mode(), 0); // missing "dev"
+	} else {
+		evt_type = PPME_SYSCALL_OPEN_E;
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type);
+	}
+
+	auto task_info = gvisor_evt.common().invoker();
+
+	scap_evt *evt = m_event_buf->m_ptr;
+
+    struct timespec tv;
+    if(clock_gettime(CLOCK_REALTIME, &tv)) {
+        perror("error clock_gettime\n"); // TODO handle
+    }
+    uint64_t ts = (int64_t)(tv.tv_sec) * (int64_t)1000000000 + (int64_t)(tv.tv_nsec);
+
+    evt->ts = ts;
+    evt->tid = task_info.thread_id();
+
+	return SCAP_SUCCESS;
+}
+
 template<class T>
-int32_t unpack(const google::protobuf::Any& any, char *lasterr)
+int32_t unpack(const google::protobuf::Any& any, char *lasterr, scap_gvisor_buffer *m_event_buf)
 {
 	T evt;
 	if(!any.UnpackTo(&evt))
@@ -95,11 +140,11 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", unpackSyscall<::gvisor::syscall::Syscall>},
 	{"gvisor.syscall.Read", unpackSyscall<::gvisor::syscall::Read>},
 	{"gvisor.syscall.Connect", unpackSyscall<::gvisor::syscall::Connect>},
-	{"gvisor.syscall.Open", unpackSyscall<::gvisor::syscall::Open>},
+	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.container.Start", unpack<::gvisor::container::Start>},
 };
 
-int32_t parse_gvisor_proto(const char* buf, int bytes, scap_evt **pevent, char *lasterr)
+int32_t parse_gvisor_proto(const char* buf, int bytes, scap_gvisor_buffer *m_event_buf, char *lasterr)
 {
 	uint32_t message_size = *reinterpret_cast<const uint32_t*>(buf);
 	if(message_size > maxEventSize)
@@ -146,5 +191,5 @@ int32_t parse_gvisor_proto(const char* buf, int bytes, scap_evt **pevent, char *
 		return SCAP_FAILURE;
 	}
 
-	return cb(any, lasterr);
+	return cb(any, lasterr, m_event_buf);
 }

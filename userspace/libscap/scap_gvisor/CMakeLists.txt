@@ -13,7 +13,7 @@ add_library(scap_gvisor STATIC
 )
 
 add_dependencies(scap_gvisor protobuf)
-target_link_libraries(scap_gvisor ${PROTOBUF_LIB})
+target_link_libraries(scap_gvisor ${PROTOBUF_LIB} scap)
 
 set(GVISOR_COMMIT "d25421d8d247a83293b7871d105c553f688b836e")
 
