@@ -10,17 +10,6 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
-struct scap_gvisor_ctx {
-    char *m_lasterr;
-
-    int m_listenfd;
-    int m_epollfd;
-    // thread accepting incoming connections 
-    pthread_t m_accept_thread;
-    // polling should be delegated to next()
-    // epoll stuff here would be nice!
-};
-
 #ifdef __cplusplus
 extern "C"{
 #endif

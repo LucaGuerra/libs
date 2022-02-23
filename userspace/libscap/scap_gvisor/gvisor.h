@@ -19,6 +19,7 @@ struct scap_gvisor_buffer {
 class scap_gvisor {
 public:
     scap_gvisor(char *lasterr);
+    ~scap_gvisor();
     int32_t open();
     int32_t close();
 
