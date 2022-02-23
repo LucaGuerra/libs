@@ -210,22 +210,40 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 
 	if(gvisor_evt.has_exit())
 	{
-		char targetbuf[25];
+		char targetbuf[100]; // TODO: allocate dynamically with proper length?
 		evt_type = PPME_SOCKET_CONNECT_X;
-		struct sockaddr_in *addr = (struct sockaddr_in *)gvisor_evt.address().data();
+		struct sockaddr *addr = (struct sockaddr *)gvisor_evt.address().data();
 
-		std::cout << "socket family " << addr->sin_family << " port " << ntohs(addr->sin_port) << std::endl;
-		std::cout << inet_ntoa(addr->sin_addr) << std::endl;
-		std::cout << (uint8_t)addr->sin_family << std::endl;
+		// TODO: family to scap, source side of the connection
+		switch(addr->sa_family)
+		{
+			case AF_INET: 
+			{
+				struct sockaddr_in *inet_addr = (struct sockaddr_in *)addr;
+				*(uint8_t *)targetbuf = (uint8_t)inet_addr->sin_family;
+				*(uint32_t *)(targetbuf + 1) = 0;
+				*(uint16_t *)(targetbuf + 5) = 0;
+				*(uint32_t *)(targetbuf + 7) = inet_addr->sin_addr.s_addr;
+				*(uint16_t *)(targetbuf + 11) = ntohs(inet_addr->sin_port);
 
-		*(uint8_t *)targetbuf = (uint8_t)addr->sin_family;
-		*(uint32_t *)(targetbuf + 1) = 0;
-		*(uint16_t *)(targetbuf + 5) = 0;
-		*(uint32_t *)(targetbuf + 7) = addr->sin_addr.s_addr;
-		*(uint16_t *)(targetbuf + 11) = ntohs(addr->sin_port);
+				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+									gvisor_evt.exit().result(), targetbuf, 1 + 4 + 4 + 2 + 2);
+				break;
+			}
+			case AF_INET6:
+			{
+				struct sockaddr_in6 *inet6_addr = (struct sockaddr_in6 *)addr;
+				*targetbuf = (uint8_t)inet6_addr->sin6_family;
+				memset(targetbuf + 1, 0, 16); //saddr
+				*(uint16_t *)(targetbuf + 17) = 0; //sport
+				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 16);
+				*(uint16_t *)(targetbuf + 35) = ntohs(inet6_addr->sin6_port);
 
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-							  gvisor_evt.exit().result(), targetbuf, 1 + 4 + 4 + 2 + 2);
+				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+									gvisor_evt.exit().result(), targetbuf, 1 + 16 + 16 + 2 + 2);
+				break;
+			}
+		}
 	}
 	else
 	{
