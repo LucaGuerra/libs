@@ -37,7 +37,15 @@ void accept_thread(int listenfd, int epollfd)
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
-	m_event_buf = { NULL, 0 };
+	m_event_buf = { nullptr, 0 };
+}
+
+scap_gvisor::~scap_gvisor()
+{
+	if(m_event_buf.m_ptr != nullptr)
+	{
+		free(m_event_buf.m_ptr);
+	}
 }
 
 int32_t scap_gvisor::open()
