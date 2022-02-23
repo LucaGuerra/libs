@@ -77,14 +77,14 @@ const struct ppm_event_info* scap_event_getinfo(scap_evt* e)
 	return &(g_event_info[e->type]);
 }
 
-inline size_t scap_event_ensure_size(scap_evt **pevent, size_t cur_size, size_t desired_size)
+inline size_t scap_event_ensure_size(scap_evt **pevent, size_t buf_size, size_t desired_size)
 {
-	if(cur_size >= desired_size)
+	if(buf_size >= desired_size)
 	{
-		return cur_size;
+		return buf_size;
 	}
 
-	if(cur_size == 0)
+	if(buf_size == 0)
 	{
 		// compute next higher power of 2 of the the initial size
 		desired_size--;
@@ -104,14 +104,16 @@ inline size_t scap_event_ensure_size(scap_evt **pevent, size_t cur_size, size_t 
 		return desired_size;
 	}
 
-	size_t next_size = cur_size * 2;
-	*pevent = realloc(*pevent, next_size);
-	if(*pevent == NULL)
-	{
-		return 0;
+	while(buf_size < desired_size) {
+		buf_size = buf_size * 2;
+		*pevent = realloc(*pevent, buf_size);
+		if(*pevent == NULL)
+		{
+			return 0;
+		}
 	}
 
-	return next_size;
+	return buf_size;
 }
 
 inline uint16_t *scap_syscall_event_param_lengths(scap_evt *event)
