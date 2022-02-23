@@ -212,15 +212,13 @@ size_t scap_event_create_v(scap_evt **pevent, size_t bufsize, enum ppm_event_typ
             param_size = 1 + 12;
 
             break;
-		case PT_SOCKTUPLE: /* A sockaddr tuple,1byte family + 12byte data + 12byte data */
-            void *s2arg = va_arg(ap, void*);
-            param_buf = &s2arg;
-            param_size = 1 + 12 + 12;
-
-			break;
 #endif
+		case PT_SOCKTUPLE:  /* A sockaddr tuple,1byte family + 12byte data + 12byte data */
+            param_buf = va_arg(ap, void*);
+			param_size = va_arg(ap, uint64_t);
+			break;
+			
         case PT_SOCKADDR:
-        case PT_SOCKTUPLE:
 		case PT_NONE:
 		case PT_FDLIST:		    /* A list of fds, 16bit count + count * (64bit fd + 16bit flags) */
 		case PT_DYN:		    /* Type can vary depending on the context. Used for filter fields like evt.rawarg. */

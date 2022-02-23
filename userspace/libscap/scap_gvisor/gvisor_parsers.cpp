@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdint.h>
 
 // #define _POSIX_C_SOURCE 199309L
 #include <time.h>
@@ -163,6 +168,54 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 	return SCAP_SUCCESS;
 }
 
+int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+{
+	gvisor::syscall::Connect gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	enum ppm_event_type evt_type;
+	/* PPME_SOCKET_CONNECT_E */ // "connect", EC_NET, EF_USES_FD | EF_MODIFIES_STATE, 1, {{"fd", PT_FD, PF_DEC} } },
+	/* PPME_SOCKET_CONNECT_X */ // {"connect", EC_NET, EF_USES_FD | EF_MODIFIES_STATE, 2, {{"res", PT_ERRNO, PF_DEC}, {"tuple", PT_SOCKTUPLE, PF_NA} } },
+
+	if(gvisor_evt.has_exit())
+	{
+		char targetbuf[25];
+		evt_type = PPME_SOCKET_CONNECT_X;
+		struct sockaddr_in *addr = (struct sockaddr_in *)gvisor_evt.address().data();
+
+		std::cout << "socket family " << addr->sin_family << " port " << ntohs(addr->sin_port) << std::endl;
+		std::cout << inet_ntoa(addr->sin_addr) << std::endl;
+		std::cout << (uint8_t)addr->sin_family << std::endl;
+
+		*(uint8_t *)targetbuf = (uint8_t)addr->sin_family;
+		*(uint32_t *)(targetbuf + 1) = 0;
+		*(uint16_t *)(targetbuf + 5) = 0;
+		*(uint32_t *)(targetbuf + 7) = addr->sin_addr.s_addr;
+		*(uint16_t *)(targetbuf + 11) = ntohs(addr->sin_port);
+
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+							  gvisor_evt.exit().result(), targetbuf, 1 + 4 + 4 + 2 + 2);
+	}
+	else
+	{
+		evt_type = PPME_SOCKET_CONNECT_E;
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type, gvisor_evt.fd());
+	}
+
+	auto task_info = gvisor_evt.common().invoker();
+
+	scap_evt *evt = m_event_buf->m_ptr;
+
+	evt->ts = current_timestamp();
+	evt->tid = task_info.thread_id();
+
+	return SCAP_SUCCESS;
+}
+
 template<class T>
 int32_t unpack(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
 {
@@ -183,7 +236,7 @@ int32_t unpack(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buff
 std::map<std::string, Callback> dispatchers = {
 	//{"gvisor.syscall.Syscall", unpackSyscall<::gvisor::syscall::Syscall>},
 	{"gvisor.syscall.Read", parse_read},
-	//{"gvisor.syscall.Connect", unpackSyscall<::gvisor::syscall::Connect>},
+	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	//{"gvisor.container.Start", unpack<::gvisor::container::Start>},
 };
