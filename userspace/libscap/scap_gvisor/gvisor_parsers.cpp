@@ -11,6 +11,7 @@
 
 #include <functional>
 #include <unordered_map>
+#include <sstream>
 
 #include "gvisor.h"
 #include "../../driver/ppm_events_public.h"
@@ -97,6 +98,35 @@ int32_t unpackSyscall(const google::protobuf::Any &any, char *lasterr, scap_gvis
 	return SCAP_SUCCESS;
 }
 
+int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+{
+	gvisor::container::Start gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking container start protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	std::string container_id = gvisor_evt.id();
+
+	std::stringstream ss;
+	ss << "{";
+	ss << "\"container\":{";
+	ss << "\"id\":"
+	   << "\"" << container_id.substr(12).c_str() << "\",";
+	ss << "\"full_id\":"
+	   << "\"" << container_id.c_str() << "\",";
+	ss << "\"lookup_state\":"
+	   << "1"; // sinsp_container_lookup_state::SUCCESSFUL
+	ss << "}"; // "container"
+	ss << "}";
+
+	m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, PPME_CONTAINER_JSON_E,
+						  ss.str().c_str());
+
+	return SCAP_SUCCESS;
+}
+
 int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
 {
 	gvisor::syscall::Read gvisor_evt;
@@ -107,9 +137,6 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 	}
 
 	enum ppm_event_type evt_type;
-
-	/* PPME_SYSCALL_READ_E */ // {"read", EC_IO_READ, EF_USES_FD | EF_READS_FROM_FD | EF_DROP_SIMPLE_CONS, 2, {{"fd", PT_FD, PF_DEC}, {"size", PT_UINT32, PF_DEC} } },
-	/* PPME_SYSCALL_READ_X */ // {"read", EC_IO_READ, EF_USES_FD | EF_READS_FROM_FD | EF_DROP_SIMPLE_CONS, 2, {{"res", PT_ERRNO, PF_DEC}, {"data", PT_BYTEBUF, PF_NA} } },
 
 	if(!gvisor_evt.has_exit())
 	{
@@ -238,7 +265,7 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
-	//{"gvisor.container.Start", unpack<::gvisor::container::Start>},
+	{"gvisor.container.Start", parse_container_start},
 };
 
 int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_event_buf, char *lasterr)
@@ -280,7 +307,7 @@ int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_eve
 		return SCAP_FAILURE;
 	}
 
-	const std::string name(url.substr(prefixLen));
+	const std::string name = url.substr(prefixLen);
 	Callback cb = dispatchers[name];
 	if(cb == nullptr)
 	{
