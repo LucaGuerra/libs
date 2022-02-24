@@ -14,18 +14,6 @@
 extern "C"{
 #endif
 
-///////////////////////////////////////////////////////////////////////////////
-//  Internal functions 
-///////////////////////////////////////////////////////////////////////////////
-
-void *polling_thread(void *args)
-{
-    puts("hello from polling thread");
-	return NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
 // producer (gvisor) -> unix socket -> accept thread -> epoll -> adapter unpacks message
 
 // scap_gvisor_open must:
@@ -36,27 +24,23 @@ void *polling_thread(void *args)
 // param and import user not used for now 
 int32_t scap_gvisor_open(scap_ctx* ctx, const void *param, bool import_users)
 {
-	printf("scap_gvisor_open()\n");
     scap_gvisor *gvisor_ctx = (struct scap_gvisor *)ctx;
 	return gvisor_ctx->open();
 }
 
 scap_ctx *scap_gvisor_alloc(char *lasterr_ptr) 
 {
-    printf("scap_gvisor_alloc()\n");
 	return (scap_ctx *) new scap_gvisor(lasterr_ptr);
 }
 
 void scap_gvisor_free(scap_ctx *ctx)
 {
-    printf("scap_gvisor_free()\n");
 	scap_gvisor *gvisor_ctx = (struct scap_gvisor *)ctx;
     delete gvisor_ctx;
 }
 
 int32_t scap_gvisor_start_capture(scap_ctx* ctx)
 {
-	printf("scap_gvisor_start_capture()\n");
     scap_gvisor *gvisor_ctx = (scap_gvisor*)ctx;
 	return gvisor_ctx->start_capture();
 }
@@ -71,7 +55,6 @@ int32_t scap_gvisor_close(scap_ctx* ctx)
 
 int32_t scap_gvisor_stop_capture(scap_ctx* ctx)
 {
-	printf("scap_gvisor_stop_capture\n");
     scap_gvisor *gvisor_ctx = (scap_gvisor*)ctx;
 	return gvisor_ctx->stop_capture();
 }

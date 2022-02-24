@@ -201,12 +201,12 @@ size_t scap_event_create_v(scap_evt **pevent, size_t bufsize, enum ppm_event_typ
             param_size = strlen(param_buf) + 1;
 
 			break;
+#if 0
 		case PT_BYTEBUF: /* A raw buffer of bytes not suitable for printing */
 			param_buf = va_arg(ap, char*);
 			param_size = va_arg(ap, uint64_t);
 
 			break;
-#if 0
 		case PT_SOCKADDR:  /* A sockaddr structure, 1byte family + data */
             // XXX PROBABLY WRONG
             void *sarg = va_arg(ap, void*); // XXX maybe check the right type
@@ -215,6 +215,7 @@ size_t scap_event_create_v(scap_evt **pevent, size_t bufsize, enum ppm_event_typ
 
             break;
 #endif
+		case PT_BYTEBUF: /* A raw buffer of bytes not suitable for printing */
 		case PT_SOCKTUPLE:  /* A sockaddr tuple,1byte family + 12byte data + 12byte data */
             param_buf = va_arg(ap, void*);
 			param_size = va_arg(ap, uint64_t);
