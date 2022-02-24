@@ -243,7 +243,6 @@ int32_t scap_event_encode_params_v(const struct scap_sized_buffer event_buf, siz
             param.buf = va_arg(args, char*);
             param.size = strlen(param.buf) + 1;
 			break;
-
 		case PT_BYTEBUF: /* A raw buffer of bytes not suitable for printing */
 		case PT_SOCKTUPLE:  /* A sockaddr tuple,1byte family + 12byte data + 12byte data */
 		case PT_FDLIST:		    /* A list of fds, 16bit count + count * (64bit fd + 16bit flags) */
