@@ -8,7 +8,7 @@
 #include "scap.h"
 
 #define GVISOR_SOCKET "/tmp/123.sock" // make it configurable
-#define GVISOR_MAX_SANDBOXES 32
+#define GVISOR_MAX_READY_SANDBOXES 32
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
 
 struct scap_gvisor_buffer {
