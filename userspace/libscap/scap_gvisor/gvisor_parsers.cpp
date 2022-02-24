@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 #include <arpa/inet.h>
 #include <stdint.h>
 
@@ -48,7 +49,7 @@ void log(const char *fmt, ...)
 
 inline uint64_t current_timestamp()
 {
-	struct timespec tv;
+	timespec tv;
 	if(clock_gettime(CLOCK_REALTIME, &tv))
 	{
 		perror("error clock_gettime\n"); // TODO handle
@@ -81,7 +82,7 @@ int32_t unpackSyscall(const google::protobuf::Any &any, char *lasterr, scap_gvis
 	auto name = any.type_url().substr(last_dot + 1);
 	log("%s %.*s\n", evt.has_exit() ? "X" : "E", static_cast<int>(name.size()), name.data());
 
-	struct ppm_evt_hdr hdr;
+	ppm_evt_hdr hdr;
 	auto task_info = evt.common().invoker();
 	hdr.tid = (uint64_t)task_info.thread_id();
 	hdr.ts = (uint64_t)task_info.thread_start_time();
@@ -136,7 +137,7 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 		return SCAP_FAILURE;
 	}
 
-	enum ppm_event_type evt_type;
+	ppm_event_type evt_type;
 
 	if(!gvisor_evt.has_exit())
 	{
@@ -170,7 +171,7 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 		return SCAP_FAILURE;
 	}
 
-	enum ppm_event_type evt_type;
+	ppm_event_type evt_type;
 
 	if(gvisor_evt.has_exit())
 	{
@@ -204,27 +205,26 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 		return SCAP_FAILURE;
 	}
 
-	enum ppm_event_type evt_type;
-	/* PPME_SOCKET_CONNECT_E */ // "connect", EC_NET, EF_USES_FD | EF_MODIFIES_STATE, 1, {{"fd", PT_FD, PF_DEC} } },
-	/* PPME_SOCKET_CONNECT_X */ // {"connect", EC_NET, EF_USES_FD | EF_MODIFIES_STATE, 2, {{"res", PT_ERRNO, PF_DEC}, {"tuple", PT_SOCKTUPLE, PF_NA} } },
+	ppm_event_type evt_type;
 
 	if(gvisor_evt.has_exit())
 	{
-		char targetbuf[100]; // TODO: allocate dynamically with proper length?
+		char targetbuf[256]; // TODO: allocate dynamically with proper length?
 		evt_type = PPME_SOCKET_CONNECT_X;
-		struct sockaddr *addr = (struct sockaddr *)gvisor_evt.address().data();
+		sockaddr *addr = (sockaddr *)gvisor_evt.address().data();
 
 		// TODO: family to scap, source side of the connection
 		switch(addr->sa_family)
 		{
 			case AF_INET: 
 			{
-				struct sockaddr_in *inet_addr = (struct sockaddr_in *)addr;
-				*(uint8_t *)targetbuf = (uint8_t)inet_addr->sin_family;
-				*(uint32_t *)(targetbuf + 1) = 0;
-				*(uint16_t *)(targetbuf + 5) = 0;
-				*(uint32_t *)(targetbuf + 7) = inet_addr->sin_addr.s_addr;
-				*(uint16_t *)(targetbuf + 11) = ntohs(inet_addr->sin_port);
+				sockaddr_in *inet_addr = (sockaddr_in *)addr;
+				uint16_t dport = ntohs(inet_addr->sin_port);
+				memcpy(targetbuf, &inet_addr->sin_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, sizeof(uint32_t));
+				memset(targetbuf + 5, 0, sizeof(uint16_t));
+				memcpy(targetbuf + 7, &inet_addr->sin_addr.s_addr, sizeof(uint32_t));
+				memcpy(targetbuf + 11, &dport, sizeof(uint16_t));
 
 				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
 									gvisor_evt.exit().result(), targetbuf, 1 + 4 + 4 + 2 + 2);
@@ -232,15 +232,29 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 			}
 			case AF_INET6:
 			{
-				struct sockaddr_in6 *inet6_addr = (struct sockaddr_in6 *)addr;
-				*targetbuf = (uint8_t)inet6_addr->sin6_family;
-				memset(targetbuf + 1, 0, 16); //saddr
-				*(uint16_t *)(targetbuf + 17) = 0; //sport
-				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 16);
-				*(uint16_t *)(targetbuf + 35) = ntohs(inet6_addr->sin6_port);
+				sockaddr_in6 *inet6_addr = (sockaddr_in6 *)addr;
+				uint16_t dport = ntohs(inet6_addr->sin6_port);
+				memcpy(targetbuf, &inet6_addr->sin6_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, 2 * sizeof(uint64_t)); //saddr
+				memset(targetbuf + 17, 0, sizeof(uint16_t)); //sport
+				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 2 * sizeof(uint64_t));
+				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
 
 				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
 									gvisor_evt.exit().result(), targetbuf, 1 + 16 + 16 + 2 + 2);
+				break;
+			}
+			case AF_UNIX:
+			{
+				sockaddr_un *unix_addr = (sockaddr_un *)addr;
+				memcpy(targetbuf, &unix_addr->sun_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, sizeof(uint64_t)); // TODO: understand how to fill this 
+				memset(targetbuf + 1 + 8, 0, sizeof(uint64_t));
+				memcpy(targetbuf + 1 + 8 + 8, &unix_addr->sun_path, 108);
+				*(targetbuf + 1 + 8 + 8 + 108 - 1) = 0;
+
+				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+									gvisor_evt.exit().result(), targetbuf, 1 + 8 + 8 + 108);
 				break;
 			}
 		}

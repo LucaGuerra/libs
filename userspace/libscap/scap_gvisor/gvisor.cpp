@@ -121,59 +121,58 @@ int32_t scap_gvisor::stop_capture()
 
 int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 {
-	struct epoll_event evt;
+	struct epoll_event evts[GVISOR_MAX_READY_SANDBOXES];
 	char message[GVISOR_MAX_MESSAGE_SIZE];
 
-	// TODO get multiple events and add them to the context
-	int nfds = epoll_wait(m_epollfd, &evt, 1, -1);
+	int nfds = epoll_wait(m_epollfd, evts, GVISOR_MAX_READY_SANDBOXES, -1);
 	if (nfds < 0)
 	{
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "epoll_wait error: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
 
-	if (evt.events & EPOLLIN) {
-		ssize_t nbytes = read(evt.data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
-		if(nbytes == -1)
-		{
-			snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Error reading from gvisor client: %s", strerror(errno));
-			return SCAP_FAILURE;
+	for (int i = 0; i < nfds; ++i) {
+		if (evts[i].events & EPOLLIN) {
+			ssize_t nbytes = read(evts[i].data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
+			if(nbytes == -1)
+			{
+				snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Error reading from gvisor client: %s", strerror(errno));
+				return SCAP_FAILURE;
+			}
+			else if(nbytes == 0)
+			{
+				::close(evts[i].data.fd);
+				return SCAP_TIMEOUT;
+			}
+
+			if(m_event_buf.m_ptr != NULL)
+			{
+				free(m_event_buf.m_ptr);
+				m_event_buf.m_ptr = NULL;
+				m_event_buf.m_size = 0;
+			}
+
+			uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
+			*pevent = m_event_buf.m_ptr;
+
+			return parse_status;
 		}
-		else if(nbytes == 0)
-		{
-			::close(evt.data.fd);
-			return SCAP_TIMEOUT;
+
+		if ((evts[i].events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
+			return SCAP_EOF;
 		}
 
-		if(m_event_buf.m_ptr != NULL)
-		{
-			free(m_event_buf.m_ptr);
-			m_event_buf.m_ptr = NULL;
-			m_event_buf.m_size = 0;
+		if (evts[i].events & EPOLLERR) {
+			int socket_error = 0;
+			socklen_t len = sizeof(socket_error);
+			if(getsockopt(evts[i].data.fd, SOL_SOCKET, SO_ERROR, &socket_error, &len))
+			{
+				printf("EPOLL ERROR: %s\n", strerror(socket_error));
+				snprintf(m_lasterr, SCAP_LASTERR_SIZE, "epoll error: %s", strerror(socket_error));
+				return SCAP_FAILURE;
+			}
+			
 		}
-
-        uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
-		*pevent = m_event_buf.m_ptr;
-
-		return parse_status;
-	}
-
-    if ((evt.events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
-		return SCAP_EOF;
-	}
-
-	if (evt.events & EPOLLERR) {
-		printf("socket error\n");
-		return SCAP_FAILURE;
-		/*
-		int socket_error = 0;
-		if(getsockopt(evt.data.fd, SOL_SOCKET, SO_ERROR, &socket_error, sizeof(socket_error)))
-		{
-			printf("EPOLL ERROR: %s\n", strerror(socket_error));
-			snprintf(gvisor_ctx->m_lasterr, SCAP_LASTERR_SIZE, "epoll error: %s", strerror(socket_error));
-			return SCAP_FAILURE;
-		}
-		*/
 	}
 
     return SCAP_SUCCESS;
