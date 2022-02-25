@@ -3,7 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/un.h>
+#include <linux/un.h>
 #include <arpa/inet.h>
 #include <stdint.h>
 
@@ -251,12 +251,14 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 				memset(targetbuf + 1, 0, sizeof(uint64_t)); // TODO: understand how to fill this 
 				memset(targetbuf + 1 + 8, 0, sizeof(uint64_t));
 				memcpy(targetbuf + 1 + 8 + 8, &unix_addr->sun_path, 108);
-				*(targetbuf + 1 + 8 + 8 + 108 - 1) = 0;
+				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
 
 				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-									gvisor_evt.exit().result(), targetbuf, 1 + 8 + 8 + 108);
+									gvisor_evt.exit().result(), targetbuf, 1 + 8 + 8 + UNIX_PATH_MAX);
 				break;
 			}
+			default:
+				return SCAP_TIMEOUT;
 		}
 	}
 	else
