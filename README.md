@@ -1,3 +1,78 @@
+# falcosecurity/libs with gVisor POC
+
+This branch contains the necessary functionality to make the Falco libraries interact with the [gVisor Runtime Monitoring POC](https://github.com/google/gvisor/pull/7018).
+
+Initially, this can be easily tested with [OSS Sysdig](https://github.com/draios/sysdig) to display events as explained in the instructions below. The plan of course involves making this fully compatible with Falco.
+
+To build this version, check out both this repo on this branch/commit and OSS Sysdig
+```
+$ git clone https://github.com/LucaGuerra/libs.git
+$ git clone https://github.com/draios/sysdig.git
+$ cd libs; git checkout gvisor # or the specific commit ID
+$ cd ../sysdig
+$ git checkout gvisor
+$ mkdir build; cd build
+$ cmake -DFALCOSECURITY_LIBS_SOURCE_DIR=$(pwd)/../../libs ..
+$ make -j4
+```
+
+and then run
+```
+./userspace/sysdig/sysdig -g
+```
+
+The socket is currently hardcoded as `/tmp/123.sock` because it was so written in the gVisor POC but that will change in the future.
+
+As an example, with this sample gVisor configuration
+```
+{
+  "name": "Default",
+  "points": [{
+    "name": "container/start"
+  }, {
+    "name": "syscall/openat/enter",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/openat/exit",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+   }, {
+    "name": "syscall/read/enter",
+    "optional_fields": [ "fd_path" ],
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/read/exit",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/1/enter",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/1/exit",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/connect/enter",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }, {
+    "name": "syscall/connect/exit",
+    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
+  }],
+  "sinks": [{
+    "name": "remote",
+    "config": {
+      "endpoint": "/tmp/123.sock"
+    }
+  }]
+}
+```
+
+We can then run a sandbox
+```
+sudo docker run -it --runtime=runsc ubuntu bash
+```
+
+And see the results in real time in the sysdig console.
+
+Below you can find the original `falcosecurity/libs` readme.
+
 # falcosecurity/libs
 
 As per the [OSS Libraries Contribution Plan](https://github.com/falcosecurity/falco/blob/master/proposals/20210119-libraries-contribution.md), this repository has been chosen to be the new home for **libsinsp**, **libscap**, the **kernel module** and the **eBPF probe** sources.  
