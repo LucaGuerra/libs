@@ -26,8 +26,6 @@ typedef std::function<int32_t(const google::protobuf::Any &any, char *lasterr, s
 constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
 constexpr size_t maxEventSize = 300 * 1024;
 
-bool quiet = false;
-
 #pragma pack(push, 1)
 struct header
 {
@@ -35,17 +33,6 @@ struct header
 	uint32_t dropped_count;
 };
 #pragma pack(pop)
-
-void log(const char *fmt, ...)
-{
-	if(!quiet)
-	{
-		va_list ap;
-		va_start(ap, fmt);
-		vprintf(fmt, ap);
-		va_end(ap);
-	}
-}
 
 inline uint64_t current_timestamp()
 {
@@ -56,47 +43,6 @@ inline uint64_t current_timestamp()
 	}
 
 	return (int64_t)(tv.tv_sec) * (int64_t)1000000000 + (int64_t)(tv.tv_nsec);
-}
-
-std::unordered_map<std::string, std::pair<unsigned int, unsigned int>> gvisor_syscall_ppm_evt_map = {
-	{"Open", {PPME_SYSCALL_OPEN_E, PPME_SYSCALL_OPEN_X}},
-	{"Read", {PPME_SYSCALL_READ_E, PPME_SYSCALL_READ_X}},
-	{"Connect", {PPME_SOCKET_CONNECT_E, PPME_SOCKET_CONNECT_X}}};
-
-template<class T>
-int32_t unpackSyscall(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
-{
-	T evt;
-	if(!any.UnpackTo(&evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking syscall: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
-	auto last_dot = any.type_url().find_last_of('.');
-	if(last_dot == std::string::npos)
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Invalid URL name unpacking syscall: %.*s", static_cast<int>(any.type_url().size()),
-			 any.type_url().data());
-		return SCAP_FAILURE;
-	}
-	auto name = any.type_url().substr(last_dot + 1);
-	log("%s %.*s\n", evt.has_exit() ? "X" : "E", static_cast<int>(name.size()), name.data());
-
-	ppm_evt_hdr hdr;
-	auto task_info = evt.common().invoker();
-	hdr.tid = (uint64_t)task_info.thread_id();
-	hdr.ts = (uint64_t)task_info.thread_start_time();
-	if(!evt.has_exit())
-	{
-		hdr.type = (enum ppm_event_type)gvisor_syscall_ppm_evt_map[name].first;
-	}
-	else
-	{
-		hdr.type = (enum ppm_event_type)gvisor_syscall_ppm_evt_map[name].second;
-	}
-	std::cout << "{" << hdr.tid << "," << hdr.ts << "," << hdr.type << "}" << std::endl;
-
-	return SCAP_SUCCESS;
 }
 
 int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
@@ -277,25 +223,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 	return SCAP_SUCCESS;
 }
 
-template<class T>
-int32_t unpack(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
-{
-	T evt;
-	if(!any.UnpackTo(&evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "UnpackTo\n");
-		return SCAP_FAILURE;
-	}
-	auto name = any.type_url().substr(prefixLen);
-	log("%.*s => %s\n", static_cast<int>(name.size()), name.data(),
-	    evt.ShortDebugString().c_str());
-	return SCAP_SUCCESS;
-}
-
-// for connect, look at ppm_fillers.c :1414 (fd_to_socktuple)
-
 std::map<std::string, Callback> dispatchers = {
-	//{"gvisor.syscall.Syscall", unpackSyscall<::gvisor::syscall::Syscall>},
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
@@ -346,7 +274,7 @@ int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_eve
 	if(cb == nullptr)
 	{
 		snprintf(lasterr, SCAP_LASTERR_SIZE, "No callback registered for %s\n", name.c_str());
-		return SCAP_TIMEOUT; // TODO: we cannot return failure, otherwise we stop looping through the events
+		return SCAP_TIMEOUT; 
 	}
 
 	return cb(any, lasterr, m_event_buf);
