@@ -8,11 +8,11 @@ To build this version, check out both this repo on this branch/commit and OSS Sy
 ```
 $ git clone https://github.com/LucaGuerra/libs.git
 $ git clone https://github.com/draios/sysdig.git
-$ cd libs; git checkout gvisor # or the specific commit ID
+$ cd libs; git checkout gvisor-integration # or the specific commit ID
 $ cd ../sysdig
 $ git checkout gvisor
 $ mkdir build; cd build
-$ cmake -DFALCOSECURITY_LIBS_SOURCE_DIR=$(pwd)/../../libs ..
+$ cmake -DFALCOSECURITY_LIBS_SOURCE_DIR=$(pwd)/../../libs -DUSE_BUNDLED_DEPS=On ..
 $ make -j4
 ```
 
