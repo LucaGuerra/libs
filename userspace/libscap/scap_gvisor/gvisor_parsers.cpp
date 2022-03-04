@@ -7,9 +7,6 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 
-// #define _POSIX_C_SOURCE 199309L
-#include <time.h>
-
 #include <functional>
 #include <unordered_map>
 #include <sstream>
@@ -34,15 +31,12 @@ struct header
 };
 #pragma pack(pop)
 
-inline uint64_t current_timestamp()
+template<class T>
+void fill_common(scap_evt *evt, T& gvisor_evt)
 {
-	timespec tv;
-	if(clock_gettime(CLOCK_REALTIME, &tv))
-	{
-		perror("error clock_gettime\n"); // TODO handle
-	}
-
-	return (int64_t)(tv.tv_sec) * (int64_t)1000000000 + (int64_t)(tv.tv_nsec);
+	auto& common = gvisor_evt.common();
+	evt->ts = common.time_ns();
+	evt->tid = common.thread_id();
 }
 
 int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
@@ -99,11 +93,9 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 							  gvisor_evt.exit().result(), gvisor_evt.data().data(), gvisor_evt.data().size());
 	}
 
-	auto task_info = gvisor_evt.common().invoker();
-
 	scap_evt *evt = m_event_buf->m_ptr;
-	evt->ts = current_timestamp();
-	evt->tid = task_info.thread_id();
+
+	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
@@ -132,12 +124,9 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type);
 	}
 
-	auto task_info = gvisor_evt.common().invoker();
-
 	scap_evt *evt = m_event_buf->m_ptr;
 
-	evt->ts = current_timestamp();
-	evt->tid = task_info.thread_id();
+	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
@@ -213,12 +202,68 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type, gvisor_evt.fd());
 	}
 
-	auto task_info = gvisor_evt.common().invoker();
+	scap_evt *evt = m_event_buf->m_ptr;
+
+	fill_common(evt, gvisor_evt);
+
+	return SCAP_SUCCESS;
+}
+
+int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+{
+	gvisor::syscall::Execve gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	ppm_event_type evt_type;
+
+	if(gvisor_evt.has_exit())
+	{
+		evt_type = PPME_SYSCALL_EXECVE_19_X;
+
+		std::string args;
+		for(int j = 0; j < gvisor_evt.argv_size(); j++) {
+			args += gvisor_evt.argv(j);
+			args += " ";
+		}
+
+		std::string env;
+		for(int j = 0; j < gvisor_evt.envv_size(); j++) {
+			args += gvisor_evt.envv(j);
+			args += " ";
+		}
+
+		std::string comm, pathname;
+		pathname = gvisor_evt.pathname();
+		comm = pathname.substr(pathname.find_last_of("/") + 1);
+
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+							  gvisor_evt.exit().result(),	 /* res */
+							  gvisor_evt.pathname().c_str(), /* exe */
+							  args.c_str(),			 /* args */
+							  args.size(),
+							  0, /* tid */
+							  0, /* pid */
+							  0, /* ptid */
+							  "cwd",
+							  16, 0, 0, 0, 0, 0,
+							  comm.c_str(),
+							  "cgroups",
+							  sizeof("cgroups"),
+							  env.c_str(), env.size(),
+							  0, 0, 0, 0);
+	} else 
+	{
+		evt_type = PPME_SYSCALL_EXECVE_19_E;
+		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type, gvisor_evt.pathname().c_str());
+	}
 
 	scap_evt *evt = m_event_buf->m_ptr;
 
-	evt->ts = current_timestamp();
-	evt->tid = task_info.thread_id();
+	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
@@ -227,6 +272,7 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
+	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.container.Start", parse_container_start},
 };
 
