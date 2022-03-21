@@ -441,18 +441,12 @@ private:
 	inline void load_params()
 	{
 		uint32_t j;
-		uint32_t nparams;
 		sinsp_evt_param par;
 		struct scap_sized_buffer params[PPM_MAX_EVENT_PARAMS];
 
-		// If we're reading a capture created with a newer version, it may contain
-		// new parameters. If instead we're reading an older version, the current
-		// event table entry may contain new parameters.
-		// Use the minimum between the two values.
-		nparams = m_info->nparams < m_pevt->nparams ? m_info->nparams : m_pevt->nparams;
 		m_params.clear();
 
-		scap_event_get_params(m_pevt, params, nparams);
+		uint32_t nparams = scap_event_decode_params(m_pevt, params);
 
 		for(j = 0; j < nparams; j++)
 		{

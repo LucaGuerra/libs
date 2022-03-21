@@ -127,45 +127,21 @@ int32_t scap_event_expand_buffer(struct scap_sized_buffer *event_buf, size_t des
 	return SCAP_SUCCESS;
 }
 
-void scap_event_get_params(const scap_evt *e, struct scap_sized_buffer *params, uint32_t n)
+uint32_t scap_event_decode_params(const scap_evt *e, struct scap_sized_buffer *params)
 {
-	if (e->type == PPME_SYSCALL_OPENAT_2_E)
-	{
-		{
-			printf("\n=====================================================\n");
-			printf("event length: %d\n", e->len);
-			printf("event type: %d\n", e->type);
-			unsigned char* e_buf = (unsigned char*)e;
-			for(uint32_t i = 0; i < e->len; i++)
-			{
-				if (i % 16 == 0) {
-					printf("%03x | ", i);
-				}
-				if (i == sizeof(struct ppm_evt_hdr)) {
-					printf("\e[1;34m%02x\e[00m ", e_buf[i]);
-				} else {
-					printf("%02x ", e_buf[i]);
-				}
-				if (i % 16 == 0xf) {
-					printf("\n");
-				}
-			}
-			printf("\n=====================================================\n");
-		}
-	}
-
 	char *len_buf = (char*)e + sizeof(struct ppm_evt_hdr);
 	char *param_buf = len_buf;
 	uint32_t is_large = scap_event_has_large_payload(e);
 	uint32_t param_size_32;
 	uint16_t param_size_16;
 
-	// nparams = m_info->nparams < m_pevt->nparams ? m_info->nparams : m_pevt->nparams;
-
-	if(e->nparams < n)
-	{
-		n = e->nparams;
-	}
+	const struct ppm_event_info* event_info = &(g_event_info[e->type]);
+	
+	// If we're reading a capture created with a newer version, it may contain
+	// new parameters. If instead we're reading an older version, the current
+	// event table entry may contain new parameters.
+	// Use the minimum between the two values.
+	uint32_t n = event_info->nparams < e->nparams ? event_info->nparams : e->nparams;
 
 	if(is_large)
 	{
@@ -191,6 +167,8 @@ void scap_event_get_params(const scap_evt *e, struct scap_sized_buffer *params, 
 		params[i].buf = param_buf;
 		param_buf += params[i].size;
 	}
+
+	return n;
 }
 
 void scap_event_set_param_length_regular(scap_evt *event, uint32_t n, uint16_t len)
@@ -203,23 +181,7 @@ void scap_event_set_param_length_large(scap_evt *event, uint32_t n, uint32_t len
 	memcpy((char *)event + sizeof(struct ppm_evt_hdr) + sizeof(uint32_t) * n, &len, sizeof(uint32_t));
 }
 
-/**
- * @brief Create an event from the parameters given as arguments.
- * 
- * Create any event from the event_table passing the type and the parameters as variadic arguments as follows:
- * - Any integer type should be passed from the correct type
- * - String types (including PT_FSPATH, PT_FSRELPATH) are passed via a null-terminated char*
- * - Buffer types, variable size types and similar, including PT_BYTEBUF, PT_SOCKTUPLE are passed with
- *   a struct scap_sized_buffer
- * 
- * @param event_buf A pointer to a scap_sized_buffer. If the pointer or length is 0 it will be allocated.
- * 					If the buffer is too small to contain the event it will be reallocated. Pointer and size are updated.
- * @param error A pointer to a scap error string to be filled in case of error.
- * @param event_type The event type (normally PPME_*)
- * @param ... 
- * @return int32_t The error value
- */
-int32_t scap_event_create(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...)
+int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...)
 {
 	va_list ap;
 	int32_t ret = SCAP_SUCCESS;
@@ -249,7 +211,7 @@ int32_t scap_event_create(struct scap_sized_buffer *event_buf, char *error, enum
 	for(int i = 0; i < event_info->nparams; i++)
 	{
 		const struct ppm_param_info *pi = &event_info->params[i];
-		struct scap_sized_buffer param;
+		struct scap_sized_buffer param = {0};
 
         uint8_t u8_arg;
         uint16_t u16_arg;
