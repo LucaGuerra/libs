@@ -72,7 +72,253 @@ uint32_t scap_event_get_sentinel_begin(scap_evt* e)
 }
 #endif
 
-const struct ppm_event_info* scap_event_getinfo(scap_evt* e)
+const struct ppm_event_info* scap_event_getinfo(const scap_evt* e)
 {
 	return &(g_event_info[e->type]);
+}
+
+uint32_t scap_event_has_large_payload(const scap_evt* e)
+{
+	return (g_event_info[e->type].flags & EF_LARGE_PAYLOAD) != 0;
+}
+
+int32_t scap_event_expand_buffer(struct scap_sized_buffer *event_buf, size_t desired_size, char *error)
+{
+	if(event_buf->size >= desired_size)
+	{
+		return SCAP_SUCCESS;
+	}
+
+	if(event_buf->size == 0)
+	{
+		// compute next higher power of 2 of the the initial size
+		desired_size--;
+		desired_size |= desired_size >> 1;
+		desired_size |= desired_size >> 2;
+		desired_size |= desired_size >> 4;
+		desired_size |= desired_size >> 8;
+		desired_size |= desired_size >> 16;
+		desired_size++;
+
+		event_buf->buf = malloc(desired_size);
+		if(event_buf->buf == NULL)
+		{
+			snprintf(error, SCAP_LASTERR_SIZE, "%s", "could not allocate event buffer");
+			return SCAP_FAILURE;
+		}
+		event_buf->size = desired_size;
+
+		return SCAP_SUCCESS;
+	}
+
+	size_t new_size = event_buf->size;
+	while(new_size < desired_size)
+	{
+		new_size = (new_size < 0x2000) ? new_size * 2 : new_size + 0x400;
+	}
+
+	if(event_buf->size != new_size) {
+		void *new_buf = realloc(event_buf->buf, new_size);
+		if(new_buf == NULL)
+		{
+			snprintf(error, SCAP_LASTERR_SIZE, "could not reallocate event buffer from %zu to %zu bytes",
+				event_buf->size, new_size);
+			return SCAP_FAILURE;
+		}
+		event_buf->buf = new_buf;
+		event_buf->size = new_size;
+	}
+
+	return SCAP_SUCCESS;
+}
+
+void scap_event_set_param_length_regular(scap_evt *event, uint32_t n, uint16_t len)
+{
+	memcpy((char *)event + sizeof(struct ppm_evt_hdr) + sizeof(uint16_t) * n, &len, sizeof(uint16_t));
+}
+
+void scap_event_set_param_length_large(scap_evt *event, uint32_t n, uint32_t len)
+{
+	memcpy((char *)event + sizeof(struct ppm_evt_hdr) + sizeof(uint32_t) * n, &len, sizeof(uint32_t));
+}
+
+int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...)
+{
+	va_list ap;
+	int32_t ret = SCAP_SUCCESS;
+
+	const struct ppm_event_info *event_info = &g_event_info[event_type];
+
+	// len_size is the size in bytes of an entry of the parameter length array
+	size_t len_size = sizeof(uint16_t);
+	if((event_info->flags & EF_LARGE_PAYLOAD) != 0)
+	{
+		len_size = sizeof(uint32_t);
+	}
+
+	size_t len = sizeof(struct ppm_evt_hdr) + len_size * event_info->nparams;
+	ret = scap_event_expand_buffer(event_buf, len, error);
+	if (ret != SCAP_SUCCESS) {
+		return ret;
+	}
+
+	memset(event_buf->buf, 0, len);
+	scap_evt *evt = event_buf->buf;
+	
+	evt->type = event_type;
+	evt->nparams = event_info->nparams;
+
+	va_start(ap, event_type);
+	for(int i = 0; i < event_info->nparams; i++)
+	{
+		const struct ppm_param_info *pi = &event_info->params[i];
+		struct scap_sized_buffer param = {0};
+
+        uint8_t u8_arg;
+        uint16_t u16_arg;
+        uint32_t u32_arg;
+        uint64_t u64_arg;
+
+		switch(pi->type)
+		{
+		case PT_INT8:
+		case PT_UINT8:
+		case PT_FLAGS8:
+		case PT_SIGTYPE:
+		case PT_L4PROTO:
+		case PT_SOCKFAMILY:
+			u8_arg = (uint8_t) (va_arg(ap, int) & 0xff);
+			param.buf = &u8_arg;
+			param.size = sizeof(uint8_t);
+			break;
+
+		case PT_INT16:
+		case PT_UINT16:
+		case PT_SYSCALLID:
+		case PT_PORT:
+		case PT_FLAGS16:
+			u16_arg = (uint16_t) (va_arg(ap, int) & 0xffff);
+			param.buf = &u16_arg;
+			param.size = sizeof(uint16_t);
+			break;
+
+		case PT_INT32:
+		case PT_UINT32:
+		case PT_BOOL:
+		case PT_IPV4ADDR:
+		case PT_UID:
+		case PT_GID:
+		case PT_FLAGS32:
+		case PT_SIGSET:
+		case PT_MODE:
+            u32_arg = va_arg(ap, uint32_t);
+            param.buf = &u32_arg;
+            param.size = sizeof(uint32_t);
+			break;
+
+		case PT_INT64:
+		case PT_UINT64:
+		case PT_ERRNO:
+		case PT_FD:
+		case PT_PID:
+		case PT_RELTIME:
+		case PT_ABSTIME:
+		case PT_DOUBLE:
+            u64_arg = va_arg(ap, uint64_t);
+            param.buf = &u64_arg;
+            param.size = sizeof(uint64_t);
+			break;
+
+		case PT_CHARBUF:
+		case PT_FSPATH:
+		case PT_FSRELPATH:
+            param.buf = va_arg(ap, char*);
+            param.size = strlen(param.buf) + 1;
+			break;
+
+		case PT_BYTEBUF: /* A raw buffer of bytes not suitable for printing */
+		case PT_SOCKTUPLE:  /* A sockaddr tuple,1byte family + 12byte data + 12byte data */
+		case PT_FDLIST:		    /* A list of fds, 16bit count + count * (64bit fd + 16bit flags) */
+		case PT_DYN:		    /* Type can vary depending on the context. Used for filter fields like evt.rawarg. */
+		case PT_CHARBUFARRAY:	    /* Pointer to an array of strings, exported by the user events decoder. 64bit. For internal use only. */
+		case PT_CHARBUF_PAIR_ARRAY: /* Pointer to an array of string pairs, exported by the user events decoder. 64bit. For internal use only. */
+		case PT_IPV4NET:	    /* An IPv4 network. */
+		case PT_IPV6ADDR:	    /* A 16 byte raw IPv6 address. */
+		case PT_IPV6NET:	    /* An IPv6 network. */
+		case PT_IPADDR:		    /* Either an IPv4 or IPv6 address. The length indicates which one it is. */
+		case PT_IPNET:		    /* Either an IPv4 or IPv6 network. The length indicates which one it is. */
+		case PT_SOCKADDR:
+            param = va_arg(ap, struct scap_sized_buffer);
+			break;
+			
+		case PT_NONE:
+        case PT_MAX:
+			break; // Nothing to do 
+		default: // Unsupported event
+			snprintf(error, SCAP_LASTERR_SIZE, "event param %d (param type %d) is unsupported", i, pi->type);
+			return SCAP_FAILURE;
+		}
+
+        // don't do anything if we couldn't correctly parse the argument (or if it's unsupported)
+        if(param.size == 0)
+        {
+            continue;
+        }
+
+        // copy the parameter into the buffer and set the size
+		ret = scap_event_expand_buffer(event_buf, len + param.size, error);
+		if (ret != SCAP_SUCCESS) {
+			return ret;
+		}
+		evt = event_buf->buf;
+
+		uint16_t param_size_16;
+		uint32_t param_size_32;
+
+		switch(len_size)
+		{
+			case sizeof(uint16_t):
+				param_size_16 = (uint16_t) (param.size & 0xffff);
+				if (param_size_16 != param.size)
+				{
+					snprintf(error, SCAP_LASTERR_SIZE, "could not fit event param %d size %zu for event with type %d in %zu bytes",
+							i, param.size, evt->type, len_size);
+					return SCAP_FAILURE;
+				}
+				scap_event_set_param_length_regular(evt, i, param_size_16);
+				break;
+			case sizeof(uint32_t):
+				param_size_32 = (uint32_t) (param.size & 0xffffffff);
+				if (param_size_32 != param.size)
+				{
+					snprintf(error, SCAP_LASTERR_SIZE, "could not fit event param %d size %zu for event with type %d in %zu bytes",
+							i, param.size, evt->type, len_size);
+					return SCAP_FAILURE;
+				}
+				scap_event_set_param_length_large(evt, i, param_size_32);
+				break;
+			default:
+				snprintf(error, SCAP_LASTERR_SIZE, "unexpected param %d length %zu for event with type %d",
+						i, len_size, evt->type);
+				return SCAP_FAILURE;
+		}
+
+        memcpy(((char*)event_buf->buf + len), param.buf, param.size);
+        len = len + param.size;
+	}
+	va_end(ap);
+
+#ifdef PPM_ENABLE_SENTINEL
+	ret = scap_event_expand_buffer(event_buf, len + sizeof(uint32_t), error);
+	if (ret != SCAP_SUCCESS) {
+		return ret;
+	}
+	evt->sentinel_begin = 0x01020304;
+	memcpy(((char*)event_buf->buf + len), &evt->sentinel_begin, sizeof(uint32_t));
+	len = len + sizeof(uint32_t);
+#endif
+
+	evt = event_buf->buf;
+	evt->len = len;
+    return ret;
 }

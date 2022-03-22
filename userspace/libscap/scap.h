@@ -559,6 +559,14 @@ struct ppm_syscall_desc {
 	char *name; /**< System call name, e.g. 'open'. */
 };
 
+/*!
+  \brief Structure used to pass a buffer and its size.
+*/
+struct scap_sized_buffer {
+	void* buf;
+	size_t size;
+};
+
 /*@}*/
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -752,7 +760,7 @@ void scap_event_reset_count(scap_t* handle);
 
   \return The pointer to the the event table entry for the given event.
 */
-const struct ppm_event_info* scap_event_getinfo(scap_evt* e);
+const struct ppm_event_info* scap_event_getinfo(const scap_evt* e);
 
 /*!
   \brief Return the dump flags for the last event received from this handle
@@ -1051,6 +1059,25 @@ int32_t scap_suppress_events_comm(scap_t* handle, const char *comm);
 */
 
 bool scap_check_suppressed_tid(scap_t *handle, int64_t tid);
+
+/*!
+  \brief Create an event from the parameters given as arguments.
+
+  Create any event from the event_table passing the type and the parameters as variadic arguments as follows:
+   - Any integer type is passed from the correct type
+   - String types (including PT_FSPATH, PT_FSRELPATH) are passed via a null-terminated char*
+   - Buffer types, variable size types and similar, including PT_BYTEBUF, PT_SOCKTUPLE are passed with
+     a struct scap_sized_buffer
+
+  \param event_buf A pointer to a scap_sized_buffer. If the contained buf is NULL or the length is 0 it will be allocated.
+  If the buffer is too small to contain the event it will be reallocated. Pointer and size are updated.
+  Even in case of error, this function may allocate a valid buffer. The caller must manage its lifecycle.
+  \param error A pointer to a scap error string to be filled in case of error.
+  \param event_type The event type (normally PPME_*)
+  \param ...
+  \return int32_t The error value
+ */
+int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...);
 
 /*@}*/
 
