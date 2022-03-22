@@ -1073,13 +1073,14 @@ uint32_t scap_event_decode_params(const scap_evt *e, struct scap_sized_buffer *p
   \brief Create an event from the parameters given as arguments.
 
   Create any event from the event_table passing the type and the parameters as variadic arguments as follows:
-   - Any integer type should be passed from the correct type
+   - Any integer type is passed from the correct type
    - String types (including PT_FSPATH, PT_FSRELPATH) are passed via a null-terminated char*
    - Buffer types, variable size types and similar, including PT_BYTEBUF, PT_SOCKTUPLE are passed with
      a struct scap_sized_buffer
  
-  \param event_buf A pointer to a scap_sized_buffer. If the pointer or length is 0 it will be allocated.
+  \param event_buf A pointer to a scap_sized_buffer. If the contained buf is NULL or the length is 0 it will be allocated.
   If the buffer is too small to contain the event it will be reallocated. Pointer and size are updated.
+  Even in case of error, this function may allocate a valid buffer. The caller must manage its lifecycle.
   \param error A pointer to a scap error string to be filled in case of error.
   \param event_type The event type (normally PPME_*)
   \param ... 

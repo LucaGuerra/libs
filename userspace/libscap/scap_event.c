@@ -111,16 +111,21 @@ int32_t scap_event_expand_buffer(struct scap_sized_buffer *event_buf, size_t des
 		return SCAP_SUCCESS;
 	}
 
-	while(event_buf->size < desired_size) {
-		size_t new_size = (event_buf->size < 0x2000) ? event_buf->size * 2 : event_buf->size + 0x400;
+	size_t new_size = event_buf->size;
+	while(new_size < desired_size)
+	{
+		new_size = (new_size < 0x2000) ? new_size * 2 : new_size + 0x400;
+	}
 
-		event_buf->buf = realloc(event_buf->buf, new_size);
-		if(event_buf->buf == NULL)
+	if(event_buf->size != new_size) {
+		void *new_buf = realloc(event_buf->buf, new_size);
+		if(new_buf == NULL)
 		{
 			snprintf(error, SCAP_LASTERR_SIZE, "could not reallocate event buffer from %zu to %zu bytes",
 				event_buf->size, new_size);
 			return SCAP_FAILURE;
 		}
+		event_buf->buf = new_buf;
 		event_buf->size = new_size;
 	}
 
@@ -346,6 +351,16 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
         len = len + param.size;
 	}
 	va_end(ap);
+
+#ifdef PPM_ENABLE_SENTINEL
+	ret = scap_event_expand_buffer(event_buf, len + sizeof(uint32_t), error);
+	if (ret != SCAP_SUCCESS) {
+		return ret;
+	}
+	evt->sentinel_begin = 0x01020304;
+	memcpy(((char*)event_buf->buf + len), &evt->sentinel_begin, sizeof(uint32_t));
+	len = len + sizeof(uint32_t);
+#endif
 
 	evt = event_buf->buf;
 	evt->len = len;
