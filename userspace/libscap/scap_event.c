@@ -223,7 +223,6 @@ int32_t scap_event_encode_params_v(const struct scap_sized_buffer event_buf, siz
             param.buf = &u32_arg;
             param.size = sizeof(uint32_t);
 			break;
-
 		case PT_INT64:
 		case PT_UINT64:
 		case PT_ERRNO:
@@ -301,7 +300,6 @@ int32_t scap_event_encode_params_v(const struct scap_sized_buffer event_buf, siz
 				if (scap_buffer_can_fit(event_buf, len))
 				{
 					scap_event_set_param_length_large(event, i, param_size_32);
-				}
 				break;
 			default:
 				snprintf(error, SCAP_LASTERR_SIZE, "unexpected param %d length %zu for event with type %d",
@@ -336,4 +334,4 @@ int32_t scap_event_encode_params_v(const struct scap_sized_buffer event_buf, siz
 	event->len = len;
 
 	return SCAP_SUCCESS;
-}
+}	
