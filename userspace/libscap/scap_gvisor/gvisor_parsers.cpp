@@ -62,7 +62,7 @@ int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, s
 	ss << "}"; // "container"
 	ss << "}";
 
-	return scap_event_encode(event_buf, lasterr, PPME_CONTAINER_JSON_E, ss.str().c_str());
+	return scap_event_encode(event_buf, lasterr, PPME_CONTAINER_JSON_E, 1, ss.str().c_str());
 }
 
 int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
@@ -80,8 +80,9 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	if(!gvisor_evt.has_exit())
 	{
 		evt_type = PPME_SYSCALL_READ_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type,
-							gvisor_evt.fd(), gvisor_evt.count());
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
+							gvisor_evt.fd(),
+							gvisor_evt.count());
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -89,10 +90,10 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	else
 	{
 		evt_type = PPME_SYSCALL_READ_X;
-
-		ret = scap_event_encode(event_buf, lasterr, evt_type,
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 3,
 								gvisor_evt.exit().result(),
-								scap_const_sized_buffer{gvisor_evt.data().data(), gvisor_evt.data().size()});
+								scap_const_sized_buffer{gvisor_evt.data().data(),
+								gvisor_evt.data().size()});
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -121,15 +122,19 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	{
 		evt_type = PPME_SYSCALL_OPEN_X;
 
-		ret = scap_event_encode(event_buf, lasterr, evt_type,
-		    					gvisor_evt.fd(), gvisor_evt.pathname().c_str(), gvisor_evt.flags(), gvisor_evt.mode(), 0); // missing "dev"
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 5,
+		    					gvisor_evt.fd(),
+								gvisor_evt.pathname().c_str(),
+								gvisor_evt.flags(),
+								gvisor_evt.mode(),
+								0); // missing "dev"
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
 	}
 	else
 	{
-		ret = scap_event_encode(event_buf, lasterr, PPME_SYSCALL_OPEN_E);
+		ret = scap_event_encode(event_buf, lasterr, PPME_SYSCALL_OPEN_E, 0);
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -175,7 +180,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 
 				uint32_t size = sizeof(uint8_t) + (sizeof(uint32_t) + sizeof(uint16_t)) * 2;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type,
+				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
 							gvisor_evt.exit().result(),
 							scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -194,7 +199,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
 				uint32_t size = sizeof(uint8_t) + (2 * sizeof(uint64_t) + sizeof(uint16_t)) * 2;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type,
+				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
 									gvisor_evt.exit().result(),
 									scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -213,7 +218,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
 				uint32_t size = sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint64_t) + UNIX_PATH_MAX;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type,
+				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
 										gvisor_evt.exit().result(),
 										scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -228,7 +233,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 	else
 	{
 		evt_type = PPME_SOCKET_CONNECT_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, gvisor_evt.fd());
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 1, gvisor_evt.fd());
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -273,7 +278,7 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 		pathname = gvisor_evt.pathname();
 		comm = pathname.substr(pathname.find_last_of("/") + 1);
 
-		ret = scap_event_encode(event_buf, lasterr, evt_type,
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
 							  gvisor_evt.exit().result(),	 /* res */
 							  gvisor_evt.pathname().c_str(), /* exe */
 							  scap_const_sized_buffer{args.c_str(), args.size()},
@@ -292,7 +297,7 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 	} else 
 	{
 		evt_type = PPME_SYSCALL_EXECVE_19_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, gvisor_evt.pathname().c_str());
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 1, gvisor_evt.pathname().c_str());
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}

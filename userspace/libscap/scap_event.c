@@ -142,7 +142,7 @@ void scap_event_set_param_length_large(scap_evt *event, uint32_t n, uint32_t len
 	memcpy((char *)event + sizeof(struct ppm_evt_hdr) + sizeof(uint32_t) * n, &len, sizeof(uint32_t));
 }
 
-int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...)
+int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...)
 {
 	va_list ap;
 	int32_t ret = SCAP_SUCCESS;
@@ -156,7 +156,9 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
 		len_size = sizeof(uint32_t);
 	}
 
-	size_t len = sizeof(struct ppm_evt_hdr) + len_size * event_info->nparams;
+	n = event_info->nparams < n ? event_info->nparams : n;
+
+	size_t len = sizeof(struct ppm_evt_hdr) + len_size * n;
 	ret = scap_event_expand_buffer(event_buf, len, error);
 	if (ret != SCAP_SUCCESS) {
 		return ret;
@@ -166,10 +168,10 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
 	scap_evt *evt = event_buf->buf;
 	
 	evt->type = event_type;
-	evt->nparams = event_info->nparams;
+	evt->nparams = n;
 
 	va_start(ap, event_type);
-	for(int i = 0; i < event_info->nparams; i++)
+	for(int i = 0; i < n; i++)
 	{
 		const struct ppm_param_info *pi = &event_info->params[i];
 		struct scap_const_sized_buffer param = {0};
