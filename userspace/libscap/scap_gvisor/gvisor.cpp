@@ -42,9 +42,9 @@ scap_gvisor::scap_gvisor(char *lasterr)
 
 scap_gvisor::~scap_gvisor()
 {
-	if(m_event_buf.m_ptr != nullptr)
+	if(m_event_buf.buf != nullptr)
 	{
-		free(m_event_buf.m_ptr);
+		free(m_event_buf.buf);
 	}
 }
 
@@ -145,15 +145,15 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 				return SCAP_TIMEOUT;
 			}
 
-			if(m_event_buf.m_ptr != NULL)
+			if(m_event_buf.buf != NULL)
 			{
-				free(m_event_buf.m_ptr);
-				m_event_buf.m_ptr = NULL;
-				m_event_buf.m_size = 0;
+				free(m_event_buf.buf);
+				m_event_buf.buf = NULL;
+				m_event_buf.size = 0;
 			}
 
 			uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
-			*pevent = m_event_buf.m_ptr;
+			*pevent = static_cast<scap_evt*>(m_event_buf.buf);
 
 			return parse_status;
 		}

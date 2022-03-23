@@ -18,7 +18,7 @@
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
 #include "pkg/sentry/seccheck/points/container.pb.h"
 
-typedef std::function<int32_t(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)> Callback;
+typedef std::function<int32_t(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)> Callback;
 
 constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
 constexpr size_t maxEventSize = 300 * 1024;
@@ -39,7 +39,7 @@ void fill_common(scap_evt *evt, T& gvisor_evt)
 	evt->tid = common.thread_id();
 }
 
-int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
 	gvisor::container::Start gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
@@ -62,14 +62,12 @@ int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, s
 	ss << "}"; // "container"
 	ss << "}";
 
-	m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, PPME_CONTAINER_JSON_E,
-						  ss.str().c_str());
-
-	return SCAP_SUCCESS;
+	return scap_event_encode(event_buf, lasterr, PPME_CONTAINER_JSON_E, ss.str().c_str());
 }
 
-int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
+	uint32_t ret;
 	gvisor::syscall::Read gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
@@ -82,26 +80,34 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 	if(!gvisor_evt.has_exit())
 	{
 		evt_type = PPME_SYSCALL_READ_E;
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-							  gvisor_evt.fd(), gvisor_evt.count());
+		ret = scap_event_encode(event_buf, lasterr, evt_type,
+							gvisor_evt.fd(), gvisor_evt.count());
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 	else
 	{
 		evt_type = PPME_SYSCALL_READ_X;
 
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-							  gvisor_evt.exit().result(), gvisor_evt.data().data(), gvisor_evt.data().size());
+		ret = scap_event_encode(event_buf, lasterr, evt_type,
+								gvisor_evt.exit().result(),
+								scap_const_sized_buffer{gvisor_evt.data().data(), gvisor_evt.data().size()});
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 
-	scap_evt *evt = m_event_buf->m_ptr;
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
 
 	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
 
-int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
+	uint32_t ret;
 	gvisor::syscall::Open gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
@@ -115,24 +121,30 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_gvisor_
 	{
 		evt_type = PPME_SYSCALL_OPEN_X;
 
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-							  gvisor_evt.fd(), gvisor_evt.pathname().c_str(), gvisor_evt.flags(), gvisor_evt.mode(), 0); // missing "dev"
+		ret = scap_event_encode(event_buf, lasterr, evt_type,
+		    					gvisor_evt.fd(), gvisor_evt.pathname().c_str(), gvisor_evt.flags(), gvisor_evt.mode(), 0); // missing "dev"
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 	else
 	{
-		evt_type = PPME_SYSCALL_OPEN_E;
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type);
+		ret = scap_event_encode(event_buf, lasterr, PPME_SYSCALL_OPEN_E);
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 
-	scap_evt *evt = m_event_buf->m_ptr;
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
 
 	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
 
-int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
+	uint32_t ret;
 	gvisor::syscall::Connect gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
@@ -161,8 +173,14 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 				memcpy(targetbuf + 7, &inet_addr->sin_addr.s_addr, sizeof(uint32_t));
 				memcpy(targetbuf + 11, &dport, sizeof(uint16_t));
 
-				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-									gvisor_evt.exit().result(), targetbuf, 1 + 4 + 4 + 2 + 2);
+				uint32_t size = sizeof(uint8_t) + (sizeof(uint32_t) + sizeof(uint16_t)) * 2;
+
+				ret = scap_event_encode(event_buf, lasterr, evt_type,
+							gvisor_evt.exit().result(),
+							scap_const_sized_buffer{targetbuf, size});
+				if (ret != SCAP_SUCCESS) {
+					return ret;
+				}
 				break;
 			}
 			case AF_INET6:
@@ -174,9 +192,15 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 				memset(targetbuf + 17, 0, sizeof(uint16_t)); //sport
 				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 2 * sizeof(uint64_t));
 				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
+				uint32_t size = sizeof(uint8_t) + (2 * sizeof(uint64_t) + sizeof(uint16_t)) * 2;
 
-				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-									gvisor_evt.exit().result(), targetbuf, 1 + 16 + 16 + 2 + 2);
+				ret = scap_event_encode(event_buf, lasterr, evt_type,
+									gvisor_evt.exit().result(),
+									scap_const_sized_buffer{targetbuf, size});
+				if (ret != SCAP_SUCCESS) {
+					return ret;
+				}
+
 				break;
 			}
 			case AF_UNIX:
@@ -187,9 +211,14 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 				memset(targetbuf + 1 + 8, 0, sizeof(uint64_t));
 				memcpy(targetbuf + 1 + 8 + 8, &unix_addr->sun_path, 108);
 				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
+				uint32_t size = sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint64_t) + UNIX_PATH_MAX;
 
-				m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
-									gvisor_evt.exit().result(), targetbuf, 1 + 8 + 8 + UNIX_PATH_MAX);
+				ret = scap_event_encode(event_buf, lasterr, evt_type,
+										gvisor_evt.exit().result(),
+										scap_const_sized_buffer{targetbuf, size});
+				if (ret != SCAP_SUCCESS) {
+					return ret;
+				}
 				break;
 			}
 			default:
@@ -199,18 +228,22 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_gvis
 	else
 	{
 		evt_type = PPME_SOCKET_CONNECT_E;
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type, gvisor_evt.fd());
+		ret = scap_event_encode(event_buf, lasterr, evt_type, gvisor_evt.fd());
+		if (ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 
-	scap_evt *evt = m_event_buf->m_ptr;
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
 
 	fill_common(evt, gvisor_evt);
 
 	return SCAP_SUCCESS;
 }
 
-int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_gvisor_buffer *m_event_buf)
+int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
+	uint32_t ret = SCAP_SUCCESS;
 	gvisor::syscall::Execve gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
@@ -240,32 +273,36 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_gviso
 		pathname = gvisor_evt.pathname();
 		comm = pathname.substr(pathname.find_last_of("/") + 1);
 
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type,
+		ret = scap_event_encode(event_buf, lasterr, evt_type,
 							  gvisor_evt.exit().result(),	 /* res */
 							  gvisor_evt.pathname().c_str(), /* exe */
-							  args.c_str(),			 /* args */
-							  args.size(),
+							  scap_const_sized_buffer{args.c_str(), args.size()},
 							  0, /* tid */
 							  0, /* pid */
 							  0, /* ptid */
 							  "cwd",
 							  16, 0, 0, 0, 0, 0,
 							  comm.c_str(),
-							  "cgroups",
-							  sizeof("cgroups"),
-							  env.c_str(), env.size(),
+							  scap_const_sized_buffer{"", 0},
+							  scap_const_sized_buffer{env.c_str(), env.size()},
 							  0, 0, 0, 0);
+		if (ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	} else 
 	{
 		evt_type = PPME_SYSCALL_EXECVE_19_E;
-		m_event_buf->m_size = scap_event_create_v(&m_event_buf->m_ptr, m_event_buf->m_size, evt_type, gvisor_evt.pathname().c_str());
+		ret = scap_event_encode(event_buf, lasterr, evt_type, gvisor_evt.pathname().c_str());
+		if (ret != SCAP_SUCCESS) {
+			return ret;
+		}
 	}
 
-	scap_evt *evt = m_event_buf->m_ptr;
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
 
 	fill_common(evt, gvisor_evt);
 
-	return SCAP_SUCCESS;
+	return ret;
 }
 
 std::map<std::string, Callback> dispatchers = {
@@ -276,7 +313,7 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.container.Start", parse_container_start},
 };
 
-int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_event_buf, char *lasterr)
+int32_t parse_gvisor_proto(const char *buf, int bytes, scap_sized_buffer *event_buf, char *lasterr)
 {
 	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
 	if(message_size > maxEventSize)
@@ -323,5 +360,5 @@ int32_t parse_gvisor_proto(const char *buf, int bytes, scap_gvisor_buffer *m_eve
 		return SCAP_TIMEOUT; 
 	}
 
-	return cb(any, lasterr, m_event_buf);
+	return cb(any, lasterr, event_buf);
 }
