@@ -172,7 +172,7 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
 	for(int i = 0; i < event_info->nparams; i++)
 	{
 		const struct ppm_param_info *pi = &event_info->params[i];
-		struct scap_sized_buffer param = {0};
+		struct scap_const_sized_buffer param = {0};
 
         uint8_t u8_arg;
         uint16_t u16_arg;
@@ -248,7 +248,7 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
 		case PT_IPADDR:		    /* Either an IPv4 or IPv6 address. The length indicates which one it is. */
 		case PT_IPNET:		    /* Either an IPv4 or IPv6 network. The length indicates which one it is. */
 		case PT_SOCKADDR:
-            param = va_arg(ap, struct scap_sized_buffer);
+            param = va_arg(ap, struct scap_const_sized_buffer);
 			break;
 			
 		case PT_NONE:

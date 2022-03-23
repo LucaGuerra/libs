@@ -62,6 +62,7 @@ int32_t scap_ig_next(scap_ctx* ctx, scap_evt **pevent, uint16_t *pcpuid)
 {
     struct scap_ig* ig_ctx = ctx;
     struct timespec tv;
+    char err[SCAP_LASTERR_SIZE];
     if(clock_gettime(CLOCK_REALTIME, &tv)) {
         perror("error clock_gettime\n");
     }
@@ -80,7 +81,10 @@ int32_t scap_ig_next(scap_ctx* ctx, scap_evt **pevent, uint16_t *pcpuid)
 
     scap_evt *event = NULL;
 
-    scap_event_create_v(&event, 0, PPME_SYSCALL_OPENAT_2_X, fd, dirfd, file_path, file_flags, mode, dev);
+    struct scap_sized_buffer sbuf = {0};
+
+    scap_event_encode(&sbuf, err, PPME_SYSCALL_OPENAT_2_X, fd, dirfd, file_path, file_flags, mode, dev);
+    event = sbuf.buf;
     event->ts = ts;
     event->tid = 31337;
 

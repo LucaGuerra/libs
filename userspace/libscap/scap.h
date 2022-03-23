@@ -566,6 +566,16 @@ struct scap_sized_buffer {
 	void* buf;
 	size_t size;
 };
+typedef struct scap_sized_buffer scap_sized_buffer;
+
+/*!
+  \brief A read-only version of the scap_sized_buffer
+*/
+struct scap_const_sized_buffer {
+	const void* buf;
+	size_t size;
+};
+typedef struct scap_const_sized_buffer scap_const_sized_buffer;
 
 /*@}*/
 
@@ -1181,8 +1191,6 @@ uint64_t scap_get_driver_api_version(scap_t* handle);
  * Get schema version supported by the driver
  */
 uint64_t scap_get_driver_schema_version(scap_t* handle);
-
-size_t scap_event_create_v(scap_evt **pevent, size_t bufsize, enum ppm_event_type event_type, ...);
 
 #ifdef __cplusplus
 }
