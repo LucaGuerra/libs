@@ -10,6 +10,7 @@
 #include <functional>
 #include <unordered_map>
 #include <sstream>
+#include <string>
 
 #include "gvisor.h"
 #include "../../driver/ppm_events_public.h"
@@ -31,16 +32,28 @@ struct header
 };
 #pragma pack(pop)
 
+// In gVisor there's no concept of tid and tgid but only vtid and vtgid.
+// However, to fit into sinsp we do need values for tid and tgid.
+uint64_t generate_tid_field(uint64_t tid, std::string container_id_hex)
+{
+	std::string container_id_64 = container_id_hex.length() > 16 ? container_id_hex.substr(0, 15) : container_id_hex;
+
+	uint64_t tid_field = stoull(container_id_64, nullptr, 16);
+	tid_field = tid_field ^ tid;
+	return tid_field;
+}
+
 template<class T>
 void fill_common(scap_evt *evt, T& gvisor_evt)
 {
 	auto& common = gvisor_evt.common();
 	evt->ts = common.time_ns();
-	evt->tid = common.thread_id();
+	evt->tid = generate_tid_field(common.thread_id(), common.container_id());
 }
 
 int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
+	uint32_t ret = SCAP_SUCCESS;
 	gvisor::container::Start gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
@@ -48,21 +61,61 @@ int32_t parse_container_start(const google::protobuf::Any &any, char *lasterr, s
 		return SCAP_FAILURE;
 	}
 
+	std::string args;
+	for(int j = 0; j < gvisor_evt.args_size(); j++) {
+		args += gvisor_evt.args(j);
+		args.push_back('\0');
+	}
+
+	std::string env;
+	for(int j = 0; j < gvisor_evt.env_size(); j++) {
+		env += gvisor_evt.env(j);
+		env.push_back('\0');
+	}
+	
 	std::string container_id = gvisor_evt.id();
 
-	std::stringstream ss;
-	ss << "{";
-	ss << "\"container\":{";
-	ss << "\"id\":"
-	   << "\"" << container_id.substr(12).c_str() << "\",";
-	ss << "\"full_id\":"
-	   << "\"" << container_id.c_str() << "\",";
-	ss << "\"lookup_state\":"
-	   << "1"; // sinsp_container_lookup_state::SUCCESSFUL
-	ss << "}"; // "container"
-	ss << "}";
+	std::string cgroups = "gvisor_container_id=/";
+	cgroups += container_id;
 
-	return scap_event_encode(event_buf, lasterr, PPME_CONTAINER_JSON_E, 1, ss.str().c_str());
+	auto& common = gvisor_evt.common();
+
+	uint64_t tid_field = generate_tid_field(1, container_id);
+	uint64_t tgid_field = generate_tid_field(1, container_id);
+
+	ret = scap_event_encode(event_buf, lasterr, PPME_SYSCALL_EXECVE_19_X, 20,
+						0, // res
+						gvisor_evt.args(0).c_str(), // actual exe missing
+						scap_const_sized_buffer{args.data(), args.size()},
+						tid_field, // tid
+						tgid_field, // pid
+						-1, // ptid is only needed if we don't have the corresponding clone event
+						"", // cwd
+						75000, // fdlimit ?
+						0, // pgft_maj
+						0, // pgft_min
+						0, // vm_size
+						0, // vm_rss
+						0, // vm_swap
+						gvisor_evt.args(0).c_str(), // args.c_str() // comm
+						scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
+						scap_const_sized_buffer{env.data(), env.size()}, // env
+						0, // tty
+						0, // pgid
+						0, // loginuid
+						0); // flags (not necessary)
+	
+	if (ret != SCAP_SUCCESS) {
+		printf("error! %s\n", lasterr);
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+
+	evt->ts = common.time_ns();
+	evt->tid = tid_field;
+
+	return SCAP_SUCCESS;
 }
 
 int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
@@ -265,32 +318,45 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 		std::string args;
 		for(int j = 0; j < gvisor_evt.argv_size(); j++) {
 			args += gvisor_evt.argv(j);
-			args += " ";
+			args.push_back('\0');
 		}
 
 		std::string env;
 		for(int j = 0; j < gvisor_evt.envv_size(); j++) {
-			args += gvisor_evt.envv(j);
-			args += " ";
+			env += gvisor_evt.envv(j);
+			env.push_back('\0');
 		}
 
 		std::string comm, pathname;
 		pathname = gvisor_evt.pathname();
 		comm = pathname.substr(pathname.find_last_of("/") + 1);
 
+		auto& common = gvisor_evt.common();
+
+		std::string cgroups = "gvisor_container_id=/";
+		cgroups += common.container_id();
+
 		ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
-							  gvisor_evt.exit().result(),	 /* res */
-							  gvisor_evt.pathname().c_str(), /* exe */
-							  scap_const_sized_buffer{args.c_str(), args.size()},
-							  0, /* tid */
-							  0, /* pid */
-							  0, /* ptid */
-							  "cwd",
-							  16, 0, 0, 0, 0, 0,
-							  comm.c_str(),
-							  scap_const_sized_buffer{"", 0},
-							  scap_const_sized_buffer{env.c_str(), env.size()},
-							  0, 0, 0, 0);
+							gvisor_evt.exit().result(), // res
+							gvisor_evt.pathname().c_str(), // exe
+							scap_const_sized_buffer{args.data(), args.size()}, // args
+							generate_tid_field(common.thread_id(), common.container_id()), // tid
+							generate_tid_field(common.thread_group_id(), common.container_id()), // pid
+							-1, // ptid is only needed if we don't have the corresponding clone event
+							"", // cwd
+							75000, // fdlimit ?
+							0, // pgft_maj
+							0, // pgft_min
+							0, // vm_size
+							0, // vm_rss
+							0, // vm_swap
+							comm.c_str(), // comm
+							scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
+							scap_const_sized_buffer{env.data(), env.size()}, // env
+							0, // tty
+							0, // pgid
+							0, // loginuid
+							0); // flags (not necessary)
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}

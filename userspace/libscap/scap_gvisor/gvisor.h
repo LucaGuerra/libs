@@ -29,7 +29,7 @@ private:
     int m_listenfd;
     int m_epollfd;
     std::thread m_accept_thread;
-    struct scap_sized_buffer m_event_buf;  
+    struct scap_sized_buffer m_event_buf;
 };
 
 int32_t parse_gvisor_proto(const char *buf, int bytes, struct scap_sized_buffer *event_buf, char *lasterr);
