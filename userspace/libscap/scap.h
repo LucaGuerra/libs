@@ -569,7 +569,7 @@ struct scap_sized_buffer {
 typedef struct scap_sized_buffer scap_sized_buffer;
 
 /*!
-  \brief A read-only version of the scap_sized_buffer
+  \brief Structure used to pass a read-only buffer and its size.
 */
 struct scap_const_sized_buffer {
 	const void* buf;
@@ -1073,7 +1073,7 @@ bool scap_check_suppressed_tid(scap_t *handle, int64_t tid);
 /*!
   \brief Create an event from the parameters given as arguments.
 
-  Create any event from the event_table passing the type and the parameters as variadic arguments as follows:
+  Create any event from the event_table passing the type, n and the parameters as variadic arguments as follows:
    - Any integer type is passed from the correct type
    - String types (including PT_FSPATH, PT_FSRELPATH) are passed via a null-terminated char*
    - Buffer types, variable size types and similar, including PT_BYTEBUF, PT_SOCKTUPLE are passed with
@@ -1084,10 +1084,12 @@ bool scap_check_suppressed_tid(scap_t *handle, int64_t tid);
   Even in case of error, this function may allocate a valid buffer. The caller must manage its lifecycle.
   \param error A pointer to a scap error string to be filled in case of error.
   \param event_type The event type (normally PPME_*)
+  \param n The number of parameters for this event.
+  This is required as the number of parameters used for each event can change between versions.
   \param ...
   \return int32_t The error value
  */
-int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, ...);
+int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...);
 
 /*@}*/
 
