@@ -170,7 +170,7 @@ int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum
 	evt->type = event_type;
 	evt->nparams = n;
 
-	va_start(ap, event_type);
+	va_start(ap, n);
 	for(int i = 0; i < n; i++)
 	{
 		const struct ppm_param_info *pi = &event_info->params[i];
