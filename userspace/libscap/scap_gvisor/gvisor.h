@@ -13,7 +13,6 @@
 #define GVISOR_MAX_READY_SANDBOXES 32
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
 
-
 class scap_gvisor {
 public:
     scap_gvisor(char *lasterr);

@@ -18,6 +18,8 @@
 #include "gvisor.h"
 #include "../../driver/ppm_events_public.h"
 
+#include "userspace_flags_helpers.h"
+
 #include "google/protobuf/any.pb.h"
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
 #include "pkg/sentry/seccheck/points/sentry.pb.h"
@@ -114,8 +116,6 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 	ret.push_back(event_buf);
 
 	// ---
-
-	//  /* PPME_CLONE_20_X */{"clone", EC_PROCESS, EF_MODIFIES_STATE, 20, {{"res", PT_PID, PF_DEC}, {"exe", PT_CHARBUF, PF_NA}, {"args", PT_BYTEBUF, PF_NA}, {"tid", PT_PID, PF_DEC}, {"pid", PT_PID, PF_DEC}, {"ptid", PT_PID, PF_DEC}, {"cwd", PT_CHARBUF, PF_NA}, {"fdlimit", PT_INT64, PF_DEC}, {"pgft_maj", PT_UINT64, PF_DEC}, {"pgft_min", PT_UINT64, PF_DEC}, {"vm_size", PT_UINT32, PF_DEC}, {"vm_rss", PT_UINT32, PF_DEC}, {"vm_swap", PT_UINT32, PF_DEC}, {"comm", PT_CHARBUF, PF_NA}, {"cgroups", PT_BYTEBUF, PF_NA}, {"flags", PT_FLAGS32, PF_HEX, clone_flags}, {"uid", PT_UINT32, PF_DEC}, {"gid", PT_UINT32, PF_DEC}, {"vtid", PT_PID, PF_DEC}, {"vpid", PT_PID, PF_DEC} } },
 
 	event_buf.buf = nullptr;
 	event_buf.size = 0;
@@ -269,11 +269,13 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	{
 		evt_type = PPME_SYSCALL_OPEN_X;
 
+		uint32_t flags = gvisor_evt.flags();
+
 		ret = scap_event_encode(event_buf, lasterr, evt_type, 5,
 		    					gvisor_evt.fd(),
 								gvisor_evt.pathname().c_str(),
-								gvisor_evt.flags(),
-								gvisor_evt.mode(),
+								open_flags_to_scap(flags),
+								open_modes_to_scap(gvisor_evt.mode(), flags),
 								0); // missing "dev"
 		if(ret != SCAP_SUCCESS) {
 			return ret;
@@ -486,9 +488,14 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 							  scap_const_sized_buffer{"", 0}, /* args */
 							  generate_tid_field(common.thread_id(), common.container_id()), // tid
 							  generate_tid_field(common.thread_group_id(), common.container_id()), // pid
-							  0, /* ptid */
+							  0, // ptid  -- we could get it from gvisor
 							  "", /* cwd */
-							  16, 0, 0, 0, 0, 0,
+							  16,
+							  0,
+							  0,
+							  0,
+							  0,
+							  0,
 							  "", /* comm */
 							  scap_const_sized_buffer{"", 0},
 							  gvisor_evt.arg1(),
