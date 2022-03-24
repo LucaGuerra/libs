@@ -6,6 +6,8 @@
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
+#include <vector>
+
 #include "gvisor.h"
 
 void accept_thread(int listenfd, int epollfd)
@@ -37,14 +39,13 @@ void accept_thread(int listenfd, int epollfd)
 scap_gvisor::scap_gvisor(char *lasterr)
 {
     m_lasterr = lasterr;
-	m_event_buf = { nullptr, 0 };
 }
 
 scap_gvisor::~scap_gvisor()
 {
-	if(m_event_buf.buf != nullptr)
+	for(scap_sized_buffer event : m_event_queue)
 	{
-		free(m_event_buf.buf);
+		free(event.buf);
 	}
 }
 
@@ -123,6 +124,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 {
 	struct epoll_event evts[GVISOR_MAX_READY_SANDBOXES];
 	char message[GVISOR_MAX_MESSAGE_SIZE];
+	uint32_t status;
 
 	int nfds = epoll_wait(m_epollfd, evts, GVISOR_MAX_READY_SANDBOXES, -1);
 	if (nfds < 0)
@@ -145,17 +147,35 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 				return SCAP_TIMEOUT;
 			}
 
-			if(m_event_buf.buf != NULL)
+			// if an event was processed free it
+			if(!m_event_queue.empty())
 			{
-				free(m_event_buf.buf);
-				m_event_buf.buf = NULL;
-				m_event_buf.size = 0;
+				scap_sized_buffer previous_event = m_event_queue.front();
+				m_event_queue.pop_front();
+
+				free(previous_event.buf);
 			}
 
-			uint32_t parse_status = parse_gvisor_proto(message, nbytes, &m_event_buf, m_lasterr);
-			*pevent = static_cast<scap_evt*>(m_event_buf.buf);
+			// if there are still events to process do it before getting more
+			if(!m_event_queue.empty())
+			{
+				scap_sized_buffer event = m_event_queue.front();
+				*pevent = static_cast<scap_evt*>(event.buf);
+				return SCAP_SUCCESS;
+			}
 
-			return parse_status;
+			std::vector<scap_sized_buffer> events = parse_gvisor_proto(message, nbytes, m_lasterr, &status);
+			if(status != SCAP_SUCCESS)
+			{
+				return status;
+			}
+
+			for(scap_sized_buffer evt_buf : events) {
+				m_event_queue.push_back(evt_buf);
+			}
+
+			*pevent = static_cast<scap_evt*>(m_event_queue.front().buf);
+			return SCAP_SUCCESS;
 		}
 
 		if ((evts[i].events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
