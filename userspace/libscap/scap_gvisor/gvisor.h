@@ -4,6 +4,8 @@
 #include <string>
 #include <thread> 
 #include <atomic>
+#include <deque>
+#include <vector>
 
 #include "scap.h"
 
@@ -29,7 +31,7 @@ private:
     int m_listenfd;
     int m_epollfd;
     std::thread m_accept_thread;
-    struct scap_sized_buffer m_event_buf;
+    std::deque<scap_sized_buffer> m_event_queue{};
 };
 
-int32_t parse_gvisor_proto(const char *buf, int bytes, struct scap_sized_buffer *event_buf, char *lasterr);
+std::vector<scap_sized_buffer> parse_gvisor_proto(const char *buf, int bytes, char *lasterr, uint32_t *status);
