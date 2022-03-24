@@ -130,7 +130,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 	if (nfds < 0)
 	{
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "epoll_wait error: %s", strerror(errno));
-		return SCAP_FAILURE;
+		return SCAP_TIMEOUT;
 	}
 
 	for (int i = 0; i < nfds; ++i) {
