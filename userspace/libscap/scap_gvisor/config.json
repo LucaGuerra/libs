@@ -127,6 +127,36 @@
             "task_start_time",
             "time"
           ]
+        },
+        {
+          "name": "sentry/clone",
+          "context_fields": [
+            "credentials",
+            "container_id",
+            "thread_id",
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "sentry/task_exit",
+          "context_fields": [
+            "credentials",
+            "container_id",
+            "thread_id",
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "sentry/execve",
+          "context_fields": [
+            "credentials",
+            "container_id",
+            "thread_id",
+            "task_start_time",
+            "time"
+          ]
         }
       ],
       "sinks": [

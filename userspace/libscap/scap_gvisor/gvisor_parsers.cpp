@@ -17,6 +17,7 @@
 
 #include "google/protobuf/any.pb.h"
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
+#include "pkg/sentry/seccheck/points/sentry.pb.h"
 #include "pkg/sentry/seccheck/points/container.pb.h"
 
 typedef std::function<int32_t(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)> Callback;
@@ -376,12 +377,122 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 	return ret;
 }
 
+int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf)
+{
+	uint32_t ret = SCAP_SUCCESS;
+	ppm_event_type evt_type;
+
+	if(gvisor_evt.has_exit())
+	{
+		evt_type = PPME_SYSCALL_CLONE_20_X;
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
+							  gvisor_evt.exit().result(), /* res */
+							  "", /* exe */
+							  scap_const_sized_buffer{"", 0}, /* args */
+							  0, // /* tid */
+							  0, /* pid */
+							  0, /* ptid */
+							  "", /* cwd */
+							  16, 0, 0, 0, 0, 0,
+							  "", /* comm */
+							  scap_const_sized_buffer{"", 0},
+							  gvisor_evt.arg1(),
+							  0, 0, gvisor_evt.common().thread_id(), 0);
+
+	} else
+	{
+		evt_type = PPME_SYSCALL_CLONE_20_E;
+		ret = scap_event_encode(event_buf, lasterr, evt_type, 0);
+		if (ret != SCAP_SUCCESS) {
+			return ret;
+		}
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+
+	fill_common(evt, gvisor_evt);
+
+	return ret;
+}
+
+int32_t parse_generic_syscall(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+{
+	gvisor::syscall::Syscall gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}		
+
+	switch(gvisor_evt.sysno())
+	{
+		case 56:
+			return parse_clone(gvisor_evt, lasterr, event_buf);
+		default:
+			return SCAP_TIMEOUT;
+	}
+	
+	return SCAP_TIMEOUT;
+}
+
+int32_t parse_sentry_clone(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+{
+	uint32_t ret;
+	gvisor::sentry::CloneInfo gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	ppm_event_type evt_type = PPME_SYSCALL_CLONE_20_X;
+	auto& common = gvisor_evt.common();
+
+	ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
+							  0, /* res */
+							  "", /* exe */
+							  scap_const_sized_buffer{"", 0}, /* args */
+							  generate_tid_field(gvisor_evt.created_thread_id(), common.container_id()), // /* tid */
+							  gvisor_evt.created_thread_group_id(), /* pid */
+							  0, /* ptid */
+							  "", /* cwd */
+							  16, 0, 0, 0, 0, 0,
+							  "", /* comm */
+							  scap_const_sized_buffer{"", 0},
+							  0,
+							  0, 0, gvisor_evt.common().thread_id(), 0);
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+
+	fill_common(evt, gvisor_evt);
+
+	return ret;
+}
+
+/*
+int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+{
+	uint32_t ret;
+	gvisor::sentry::TaskExit gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	return SCAP_TIMEOUT;
+
+}
+*/
+
 std::map<std::string, Callback> dispatchers = {
+	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.container.Start", parse_container_start},
+	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
 };
 
 int32_t parse_gvisor_proto(const char *buf, int bytes, scap_sized_buffer *event_buf, char *lasterr)
