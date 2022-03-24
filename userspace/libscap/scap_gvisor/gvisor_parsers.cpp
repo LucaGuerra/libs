@@ -475,6 +475,8 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 	uint32_t ret = SCAP_SUCCESS;
 	ppm_event_type evt_type;
 
+	auto& common = gvisor_evt.common();
+
 	if(gvisor_evt.has_exit())
 	{
 		evt_type = PPME_SYSCALL_CLONE_20_X;
@@ -482,15 +484,18 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 							  gvisor_evt.exit().result(), /* res */
 							  "", /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */
-							  0, // /* tid */
-							  0, /* pid */
+							  generate_tid_field(common.thread_id(), common.container_id()), // tid
+							  generate_tid_field(common.thread_group_id(), common.container_id()), // pid
 							  0, /* ptid */
 							  "", /* cwd */
 							  16, 0, 0, 0, 0, 0,
 							  "", /* comm */
 							  scap_const_sized_buffer{"", 0},
 							  gvisor_evt.arg1(),
-							  0, 0, gvisor_evt.common().thread_id(), 0);
+							  0,
+							  0,
+							  gvisor_evt.common().thread_id(),
+							  gvisor_evt.common().thread_group_id());
 
 	} else
 	{
@@ -541,23 +546,32 @@ int32_t parse_sentry_clone(const google::protobuf::Any &any, char *lasterr, scap
 	ppm_event_type evt_type = PPME_SYSCALL_CLONE_20_X;
 	auto& common = gvisor_evt.common();
 
+	std::string cgroups = "gvisor_container_id=/";
+	cgroups += common.container_id();
+
+	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), common.container_id());
+
 	ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
 							  0, /* res */
-							  "", /* exe */
+							  common.process_name().c_str(), /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */
-							  generate_tid_field(gvisor_evt.created_thread_id(), common.container_id()), // /* tid */
-							  gvisor_evt.created_thread_group_id(), /* pid */
-							  0, /* ptid */
+							  tid_field, // /* tid */
+							  generate_tid_field(gvisor_evt.created_thread_group_id(), common.container_id()), /* pid */
+							  generate_tid_field(common.thread_id(), common.container_id()), /* ptid */
 							  "", /* cwd */
 							  16, 0, 0, 0, 0, 0,
-							  "", /* comm */
-							  scap_const_sized_buffer{"", 0},
+							  common.process_name().c_str(), /* comm */
+							  scap_const_sized_buffer{cgroups.c_str(), cgroups.size() + 1},
 							  0,
-							  0, 0, gvisor_evt.common().thread_id(), 0);
+							  0,
+							  0,
+							  gvisor_evt.created_thread_id(),
+							  gvisor_evt.created_thread_group_id());
 
 	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
 
-	fill_common(evt, gvisor_evt);
+	evt->ts = common.time_ns();
+	evt->tid = tid_field;
 
 	return ret;
 }

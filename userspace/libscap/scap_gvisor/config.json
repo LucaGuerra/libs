@@ -135,7 +135,8 @@
             "container_id",
             "thread_id",
             "task_start_time",
-            "time"
+            "time",
+            "process_name"
           ]
         },
         {
