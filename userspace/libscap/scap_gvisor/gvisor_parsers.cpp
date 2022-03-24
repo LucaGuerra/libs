@@ -272,7 +272,7 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 		uint32_t flags = gvisor_evt.flags();
 
 		ret = scap_event_encode(event_buf, lasterr, evt_type, 5,
-		    					gvisor_evt.fd(),
+		    					gvisor_evt.exit().result(),
 								gvisor_evt.pathname().c_str(),
 								open_flags_to_scap(flags),
 								open_modes_to_scap(gvisor_evt.mode(), flags),
@@ -602,7 +602,7 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	{"gvisor.syscall.Read", parse_read},
-	{"gvisor.syscall.Connect", parse_connect},
+	//{"gvisor.syscall.Connect", parse_connect}, // connect is currently disabled as it seems to get the same fds as open()
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
