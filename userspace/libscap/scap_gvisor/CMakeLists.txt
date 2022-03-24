@@ -22,8 +22,9 @@ file(DOWNLOAD
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.proto
 )
 
+# NOTE that this one is from my local repo!
 file(DOWNLOAD
-    https://raw.githubusercontent.com/google/gvisor/${GVISOR_COMMIT}/pkg/sentry/seccheck/points/common.proto
+    https://raw.githubusercontent.com/LucaGuerra/gvisor/a4b3593a417e3efd9489528e6394ac003150f2a2/pkg/sentry/seccheck/points/common.proto
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.proto
 )
 
