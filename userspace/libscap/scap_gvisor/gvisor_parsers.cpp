@@ -472,7 +472,7 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 	return ret;
 }
 
-int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf)
+int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf, bool is_fork)
 {
 	uint32_t ret = SCAP_SUCCESS;
 	ppm_event_type evt_type;
@@ -498,7 +498,7 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 							  0,
 							  "", /* comm */
 							  scap_const_sized_buffer{"", 0},
-							  gvisor_evt.arg1(),
+							  is_fork ? PPM_CL_CLONE_CHILD_CLEARTID|PPM_CL_CLONE_CHILD_SETTID : clone_flags_to_scap(gvisor_evt.arg1()),
 							  0,
 							  0,
 							  gvisor_evt.common().thread_id(),
@@ -532,7 +532,9 @@ int32_t parse_generic_syscall(const google::protobuf::Any &any, char *lasterr, s
 	switch(gvisor_evt.sysno())
 	{
 		case 56:
-			return parse_clone(gvisor_evt, lasterr, event_buf);
+			return parse_clone(gvisor_evt, lasterr, event_buf, true);
+		case 57:
+			return parse_clone(gvisor_evt, lasterr, event_buf, false);
 		default:
 			return SCAP_TIMEOUT;
 	}

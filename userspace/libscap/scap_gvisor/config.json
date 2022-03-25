@@ -109,6 +109,26 @@
           ]
         },
         {
+          "name": "syscall/sysno/57/enter",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/57/exit",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
           "name": "syscall/connect/enter",
           "context_fields": [
             "credentials",
