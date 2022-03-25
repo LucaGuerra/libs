@@ -2,6 +2,53 @@
 
 This branch contains the necessary functionality to make the Falco libraries interact with the [gVisor Runtime Monitoring POC](https://github.com/google/gvisor/pull/7018).
 
+## gVisor requirements
+
+Runtime Monitoring POC https://github.com/google/gvisor/pull/7018 at commit bcb6da35c9ba9db292235656251c8c4e2585e6fb with the following patches:
+
+* https://github.com/LucaGuerra/gvisor/commit/760e1a108e6b4b9e21002271acb38f684a7aeeb1
+* https://github.com/LucaGuerra/gvisor/commit/75df2ab70bd4085bd156f009e149d05e15883b6e 
+* https://github.com/LucaGuerra/gvisor/commit/a4b3593a417e3efd9489528e6394ac003150f2a2
+
+Configure gVisor to use the provided configuration file in `./userspace/libscap/scap_gvisor/config.json`.
+
+## Run with Falco
+
+To build Falco, the procedure is the same as OSS Sysdig:
+
+```
+$ git clone https://github.com/LucaGuerra/libs.git
+$ git clone https://github.com/LucaGuerra/falco.git
+$ cd libs; git checkout gvisor-integration # or the specific commit ID
+$ cd ../falco
+$ git checkout gvisor
+$ mkdir build; cd build
+$ cmake -DFALCOSECURITY_LIBS_SOURCE_DIR=$(pwd)/../../libs -DUSE_BUNDLED_DEPS=On ..
+$ make -j4
+```
+
+Then, you can run the demo ruleset _without UI_ from the build directory:
+
+```
+./userspace/falco/falco -c ../falco.yaml -r ../rules/gv.demo.yaml -g
+```
+
+or, if you wish to run the UI:
+```
+./userspace/falco/falco -c ../falco.ui.yaml -r ../rules/gv.demo.yaml -g
+```
+
+and the in another terminal run the following containers (locally on the host, without gvisor):
+
+```
+sudo docker run -e WEBUI_URL=http://localhost:2802 --net=host -d falcosecurity/falcosidekick
+sudo docker run --net=host -d falcosecurity/falcosidekick-ui
+```
+
+And point your browser to http://localhost:2802/ui/ !
+
+## Run with OSS Sysdig
+
 Initially, this can be easily tested with [OSS Sysdig](https://github.com/draios/sysdig) to display events as explained in the instructions below. The plan of course involves making this fully compatible with Falco.
 
 To build this version, check out both this repo on this branch/commit and OSS Sysdig
