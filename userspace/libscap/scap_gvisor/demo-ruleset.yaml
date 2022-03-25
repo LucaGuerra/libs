@@ -1,0 +1,87 @@
+- macro: open_write
+  condition: evt.type in (open,openat,openat2) and evt.is_open_write=true and fd.typechar='f' and fd.num>=0
+
+- macro: open_read
+  condition: evt.type in (open,openat,openat2) and evt.is_open_read=true and fd.typechar='f' and fd.num>=0
+
+- macro: bin_dir
+  condition: fd.directory in (/bin, /sbin, /usr/bin, /usr/sbin)
+
+- macro: etc_dir
+  condition: fd.directory in (/etc)
+
+
+- list: passwd_binaries
+  items: [
+    shadowconfig, grpck, pwunconv, grpconv, pwck,
+    groupmod, vipw, pwconv, useradd, newusers, cppw, chpasswd, usermod,
+    groupadd, groupdel, grpunconv, chgpasswd, userdel, chage, chsh,
+    gpasswd, chfn, expiry, passwd, vigr, cpgr, adduser, addgroup, deluser, delgroup
+    ]
+
+- list: shadowutils_binaries
+  items: [
+    chage, gpasswd, lastlog, newgrp, sg, adduser, deluser, chpasswd,
+    groupadd, groupdel, addgroup, delgroup, groupmems, groupmod, grpck, grpconv, grpunconv,
+    newusers, pwck, pwconv, pwunconv, useradd, userdel, usermod, vigr, vipw, unix_chkpwd
+    ]
+
+- list: package_mgmt_binaries
+  items: [rpm_binaries, deb_binaries, update-alternat, gem, npm, pip, pip3, sane-utils.post, alternatives, chef-client, apk, snapd]
+
+- macro: exe_running_docker_save
+  condition: >
+    proc.name = "exe"
+    and (proc.cmdline contains "/var/lib/docker"
+    or proc.cmdline contains "/var/run/docker")
+    and proc.pname in (dockerd, docker, dockerd-current, docker-current)
+  
+# Open rules 
+
+- rule: Write below etc
+  desc: an attempt to write to any file below /etc
+  condition: >
+    open_write and etc_dir
+    and evt.dir = <
+    and not proc.name in (passwd_binaries, shadowutils_binaries, package_mgmt_binaries)
+  output: "File below /etc opened for writing"
+  priority: ERROR
+  tags: [filesystem, mitre_persistence]
+
+- rule: Write below binary dir
+  desc: an attempt to write to any file below a set of binary directories
+  condition: >
+    bin_dir and evt.dir = < and open_write
+
+  output: >
+    File below a known binary directory opened for writing (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline file=%fd.name parent=%proc.pname pcmdline=%proc.pcmdline gparent=%proc.aname[2] container_id=%container.id image=%container.image.repository)
+  priority: ERROR
+  tags: [filesystem, mitre_persistence]
+
+- macro: container_entrypoint
+  condition: (not proc.pname exists or proc.pname in (runc:[0:PARENT], runc:[1:CHILD], runc, docker-runc, exe, docker-runc-cur))
+
+- macro: spawned_process
+  condition: evt.type in (execve, execveat) and evt.dir=<
+
+- list: shell_binaries
+  items: [ash, bash, csh, ksh, sh, tcsh, zsh, dash]
+
+- macro: shell_procs
+  condition: proc.name in (shell_binaries)
+
+- macro: container
+  condition: (container.id != host)
+
+- rule: Terminal shell in container
+  desc: A shell was used as the entrypoint/exec point into a container with an attached terminal.
+  condition: >
+    spawned_process and container
+    and shell_procs
+    and container_entrypoint
+  output: >
+    A shell was spawned in a container with an attached terminal (user=%user.name user_loginuid=%user.loginuid %container.info
+    shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline terminal=%proc.tty container_id=%container.id image=%container.image.repository)
+  priority: NOTICE
+  tags: [container, shell, mitre_execution]
