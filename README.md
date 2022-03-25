@@ -68,49 +68,6 @@ and then run
 ./userspace/sysdig/sysdig -g
 ```
 
-The socket is currently hardcoded as `/tmp/123.sock` because it was so written in the gVisor POC but that will change in the future.
-
-As an example, with this sample gVisor configuration
-```
-{
-  "name": "Default",
-  "points": [{
-    "name": "container/start"
-  }, {
-    "name": "syscall/openat/enter",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/openat/exit",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-   }, {
-    "name": "syscall/read/enter",
-    "optional_fields": [ "fd_path" ],
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/read/exit",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/1/enter",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/1/exit",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/connect/enter",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }, {
-    "name": "syscall/connect/exit",
-    "context_fields": [ "credentials", "container_id", "thread_id", "task_start_time" ]
-  }],
-  "sinks": [{
-    "name": "remote",
-    "config": {
-      "endpoint": "/tmp/123.sock"
-    }
-  }]
-}
-```
-
 We can then run a sandbox
 ```
 sudo docker run -it --runtime=runsc ubuntu bash
