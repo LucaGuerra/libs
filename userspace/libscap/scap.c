@@ -829,6 +829,7 @@ extern struct scap_vtable gvisor_vtable;
 extern struct scap_vtable inmem_generator_vtable;
 
 scap_t* scap_open_gvisor_int(char *error,
+				  const char *gvisor_socket,
 			      int32_t *rc,
 			      proc_entry_callback proc_callback,
 			      void* proc_callback_context,
@@ -858,7 +859,7 @@ scap_t* scap_open_gvisor_int(char *error,
 		return NULL;
 	}
 
-	handle->m_vtable->open(handle->m_ctx, NULL, false);
+	handle->m_vtable->open(handle->m_ctx, gvisor_socket, false);
 
 	//
 	// Preliminary initializations
@@ -1344,9 +1345,10 @@ scap_t* scap_open(scap_open_args args, char *error, int32_t *rc)
 						args.import_users,
 						args.suppressed_comms);
 		}
-		else if (args.gvisor)
+		else if (args.gvisor_socket != NULL)
 		{
 			return scap_open_gvisor_int(error, 
+						args.gvisor_socket,
 						rc, 
 						args.proc_callback,
 						args.proc_callback_context,

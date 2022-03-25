@@ -509,8 +509,12 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 	oargs.fname = NULL;
 	oargs.proc_callback = NULL;
 	oargs.proc_callback_context = NULL;
+	oargs.gvisor_socket = NULL;
 	oargs.udig = m_udig;
-	oargs.gvisor = m_gvisor;
+	if(m_gvisor_socket != "")
+	{
+		oargs.gvisor_socket = m_gvisor_socket.c_str();
+	}
 
 	fill_syscalls_of_interest(&oargs);
 
@@ -570,9 +574,9 @@ void sinsp::open_udig(uint32_t timeout_ms)
 	open_live_common(timeout_ms, SCAP_MODE_LIVE);
 }
 
-void sinsp::open_gvisor(uint32_t timeout_ms)
+void sinsp::open_gvisor(std::string socket_path, uint32_t timeout_ms)
 {
-	m_gvisor = true;
+	m_gvisor_socket = socket_path;
 	open_live_common(timeout_ms, SCAP_MODE_LIVE);
 }
 

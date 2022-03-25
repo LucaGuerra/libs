@@ -184,7 +184,7 @@
         {
           "name": "remote",
           "config": {
-            "endpoint": "/tmp/123.sock"
+            "endpoint": "/tmp/gvisor.sock"
           }
         }
       ]
