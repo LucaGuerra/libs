@@ -18,7 +18,7 @@
 #include "gvisor.h"
 #include "../../driver/ppm_events_public.h"
 
-#include "userspace_flags_helpers.h"
+#include "userspace_flag_helpers.h"
 
 #include "google/protobuf/any.pb.h"
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
