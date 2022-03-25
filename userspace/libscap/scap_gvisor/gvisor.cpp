@@ -49,7 +49,7 @@ scap_gvisor::~scap_gvisor()
 	}
 }
 
-int32_t scap_gvisor::open()
+int32_t scap_gvisor::open(std::string socket_path)
 {
 	/*
 	 * Initilized the listen fd
@@ -57,8 +57,9 @@ int32_t scap_gvisor::open()
 	int sock, ret;
 	struct sockaddr_un address;
 	unsigned long old_umask;
+	m_socket_path = socket_path;
 
-	unlink(GVISOR_SOCKET);
+	unlink(m_socket_path.c_str());
 
 	sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1)
@@ -68,7 +69,7 @@ int32_t scap_gvisor::open()
 	}
 	memset(&address, 0, sizeof(address));
 	address.sun_family = AF_UNIX;
-	snprintf(address.sun_path, sizeof(GVISOR_SOCKET), GVISOR_SOCKET);
+	snprintf(address.sun_path, sizeof(address.sun_path), "%s", m_socket_path.c_str());
 
 	old_umask = umask(0);
 	ret = bind(sock, (struct sockaddr *)&address, sizeof(address));

@@ -21,11 +21,12 @@ extern "C"{
 // - create a unix socket (deleting the previous one if any) 
 // - prepare the socket to accept connections via bind and listen
 // - spawn a thread accepting and handling connections 
-// param and import user not used for now 
+// param is now just the socket
 int32_t scap_gvisor_open(scap_ctx* ctx, const void *param, bool import_users)
 {
+	const char *socket_path = (const char*)param;
     scap_gvisor *gvisor_ctx = (struct scap_gvisor *)ctx;
-	return gvisor_ctx->open();
+	return gvisor_ctx->open(socket_path);
 }
 
 scap_ctx *scap_gvisor_alloc(char *lasterr_ptr) 
