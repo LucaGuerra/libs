@@ -103,7 +103,7 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 
 	//	/* PPME_CLONE_20_E */{"clone", EC_PROCESS, EF_MODIFIES_STATE, 0},
 
-	*status = scap_event_encode(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_E, 0);
+	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_E, 0);
 
 	if (*status != SCAP_SUCCESS) {
 		return ret;
@@ -120,7 +120,7 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 	event_buf.buf = nullptr;
 	event_buf.size = 0;
 
-	*status = scap_event_encode(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_X, 20,
+	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_X, 20,
 						0, // child tid (0 in the child)
 						gvisor_evt.args(0).c_str(), // actual exe missing
 						scap_const_sized_buffer{args.data(), args.size()},
@@ -157,7 +157,7 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 	event_buf.buf = nullptr;
 	event_buf.size = 0;
 
-	*status = scap_event_encode(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_E, 1, gvisor_evt.args(0).c_str()); // actual exe missing
+	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_E, 1, gvisor_evt.args(0).c_str()); // actual exe missing
 
 	if (*status != SCAP_SUCCESS) {
 		return ret;
@@ -174,7 +174,7 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 	event_buf.buf = nullptr;
 	event_buf.size = 0;
 
-	*status = scap_event_encode(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_X, 20,
+	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_X, 20,
 						0, // res
 						gvisor_evt.args(0).c_str(), // actual exe missing
 						scap_const_sized_buffer{args.data(), args.size()},
@@ -227,7 +227,7 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	if(!gvisor_evt.has_exit())
 	{
 		evt_type = PPME_SYSCALL_READ_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
 							gvisor_evt.fd(),
 							gvisor_evt.count());
 		if(ret != SCAP_SUCCESS) {
@@ -237,7 +237,7 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	else
 	{
 		evt_type = PPME_SYSCALL_READ_X;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 3,
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 3,
 								gvisor_evt.exit().result(),
 								scap_const_sized_buffer{gvisor_evt.data().data(),
 								gvisor_evt.data().size()});
@@ -271,7 +271,7 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 
 		uint32_t flags = gvisor_evt.flags();
 
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 5,
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 5,
 		    					gvisor_evt.exit().result(),
 								gvisor_evt.pathname().c_str(),
 								open_flags_to_scap(flags),
@@ -283,7 +283,7 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	}
 	else
 	{
-		ret = scap_event_encode(event_buf, lasterr, PPME_SYSCALL_OPEN_E, 0);
+		ret = scap_event_encode_params(event_buf, lasterr, PPME_SYSCALL_OPEN_E, 0);
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -329,7 +329,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 
 				uint32_t size = sizeof(uint8_t) + (sizeof(uint32_t) + sizeof(uint16_t)) * 2;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
+				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
 							gvisor_evt.exit().result(),
 							scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -348,7 +348,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
 				uint32_t size = sizeof(uint8_t) + (2 * sizeof(uint64_t) + sizeof(uint16_t)) * 2;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
+				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
 									gvisor_evt.exit().result(),
 									scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -367,7 +367,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
 				uint32_t size = sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint64_t) + UNIX_PATH_MAX;
 
-				ret = scap_event_encode(event_buf, lasterr, evt_type, 2,
+				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
 										gvisor_evt.exit().result(),
 										scap_const_sized_buffer{targetbuf, size});
 				if (ret != SCAP_SUCCESS) {
@@ -382,7 +382,7 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 	else
 	{
 		evt_type = PPME_SOCKET_CONNECT_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 1, gvisor_evt.fd());
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 1, gvisor_evt.fd());
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -432,7 +432,7 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 		std::string cgroups = "gvisor_container_id=/";
 		cgroups += common.container_id();
 
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
 							gvisor_evt.exit().result(), // res
 							gvisor_evt.pathname().c_str(), // exe
 							scap_const_sized_buffer{args.data(), args.size()}, // args
@@ -459,7 +459,7 @@ int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized
 	} else 
 	{
 		evt_type = PPME_SYSCALL_EXECVE_19_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 1, gvisor_evt.pathname().c_str());
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 1, gvisor_evt.pathname().c_str());
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -482,7 +482,7 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 	if(gvisor_evt.has_exit())
 	{
 		evt_type = PPME_SYSCALL_CLONE_20_X;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
 							  gvisor_evt.exit().result(), /* res */
 							  "", /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */
@@ -507,7 +507,7 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 	} else
 	{
 		evt_type = PPME_SYSCALL_CLONE_20_E;
-		ret = scap_event_encode(event_buf, lasterr, evt_type, 0);
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 0);
 		if (ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -560,7 +560,7 @@ int32_t parse_sentry_clone(const google::protobuf::Any &any, char *lasterr, scap
 
 	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), common.container_id());
 
-	ret = scap_event_encode(event_buf, lasterr, evt_type, 20,
+	ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
 							  0, /* res */
 							  common.process_name().c_str(), /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */

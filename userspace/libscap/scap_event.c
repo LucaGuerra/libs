@@ -142,7 +142,7 @@ void scap_event_set_param_length_large(scap_evt *event, uint32_t n, uint32_t len
 	memcpy((char *)event + sizeof(struct ppm_evt_hdr) + sizeof(uint32_t) * n, &len, sizeof(uint32_t));
 }
 
-int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...)
+int32_t scap_event_encode_params(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...)
 {
 	va_list ap;
 	int32_t ret = SCAP_SUCCESS;

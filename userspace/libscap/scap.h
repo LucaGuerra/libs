@@ -1089,7 +1089,7 @@ bool scap_check_suppressed_tid(scap_t *handle, int64_t tid);
   \param ...
   \return int32_t The error value
  */
-int32_t scap_event_encode(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...);
+int32_t scap_event_encode_params(struct scap_sized_buffer *event_buf, char *error, enum ppm_event_type event_type, uint32_t n, ...);
 
 /*@}*/
 
