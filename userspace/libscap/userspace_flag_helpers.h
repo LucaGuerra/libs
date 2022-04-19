@@ -18,6 +18,14 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
+#ifndef UDIG
+#define UNDEF_UDIG
 #define UDIG
+#endif
+
 #include "../../driver/ppm_flag_helpers.h"
+
+#ifdef UNDEF_UDIG
 #undef UDIG
+#undef UNDEF_UDIG
+#endif
