@@ -520,6 +520,39 @@ int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, s
 	return ret;
 }
 
+int32_t parse_socket(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf)
+{
+	uint32_t ret = SCAP_SUCCESS;
+	ppm_event_type evt_type;
+
+	auto& common = gvisor_evt.common();
+
+	if(gvisor_evt.has_exit())
+	{
+		evt_type = PPME_SOCKET_SOCKET_X;
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 1, gvisor_evt.exit().result());
+		if(ret != SCAP_SUCCESS)
+		{
+			return ret;
+		}
+	}
+	else
+	{
+		evt_type = PPME_SOCKET_SOCKET_E;
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 3, gvisor_evt.arg1(), gvisor_evt.arg2(), gvisor_evt.arg3());
+		if(ret != SCAP_SUCCESS)
+		{
+			return ret;
+		}
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+
+	fill_common(evt, gvisor_evt);
+
+	return ret;
+}
+
 int32_t parse_generic_syscall(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
 	gvisor::syscall::Syscall gvisor_evt;
@@ -531,6 +564,8 @@ int32_t parse_generic_syscall(const google::protobuf::Any &any, char *lasterr, s
 
 	switch(gvisor_evt.sysno())
 	{
+		case 41:
+			return parse_socket(gvisor_evt, lasterr, event_buf);
 		case 56:
 			return parse_clone(gvisor_evt, lasterr, event_buf, true);
 		case 57:
