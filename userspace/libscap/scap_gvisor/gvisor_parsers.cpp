@@ -639,7 +639,7 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	{"gvisor.syscall.Read", parse_read},
-	//{"gvisor.syscall.Connect", parse_connect}, // connect is currently disabled as it seems to get the same fds as open()
+	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
