@@ -128,6 +128,26 @@ int32_t scap_gvisor::stop_capture()
     return SCAP_SUCCESS;
 }
 
+parse_result scap_gvisor::parse(scap_const_sized_buffer gvisor_msg)
+{
+	parse_result res;
+	
+	res = parse_gvisor_proto(gvisor_msg, m_scap_buf);
+	if(res.status == SCAP_INPUT_TOO_SMALL)
+	{
+		m_scap_buf.buf = realloc(m_scap_buf.buf, res.size);
+		if(!m_scap_buf.buf)
+		{
+			res.error = "Cannot realloc gvisor buffer";
+			res.status = SCAP_FAILURE;
+			return res;
+		}
+		m_scap_buf.size = res.size;
+	}
+
+	return parse_gvisor_proto(gvisor_msg, m_scap_buf);
+}
+
 int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 {
 	struct epoll_event evts[GVISOR_MAX_READY_SANDBOXES];
@@ -164,20 +184,8 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 			}
 
 			scap_const_sized_buffer gvisor_msg = {.buf = (void *)message, .size = nbytes};
-
-parse:
-			parse_result = parse_gvisor_proto(gvisor_msg, m_scap_buf);
-			if(parse_result.status == SCAP_INPUT_TOO_SMALL)
-			{
-				m_scap_buf.buf = realloc(m_scap_buf.buf, parse_result.size);
-				if(!m_scap_buf.buf)
-				{
-					snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot realloc gvisor buffer");
-					return SCAP_FAILURE;
-				}
-				goto parse;
-			}
-			else if(parse_result.status != SCAP_SUCCESS)
+			parse_result = parse(gvisor_msg);
+			if(parse_result.status != SCAP_SUCCESS)
 			{
 				snprintf(m_lasterr, SCAP_LASTERR_SIZE, parse_result.error.c_str());
 				return parse_result.status;
