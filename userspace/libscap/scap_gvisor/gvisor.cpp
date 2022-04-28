@@ -43,10 +43,7 @@ scap_gvisor::scap_gvisor(char *lasterr)
 
 scap_gvisor::~scap_gvisor()
 {
-	for(scap_sized_buffer event : m_event_queue)
-	{
-		free(event.buf);
-	}
+
 }
 
 int32_t scap_gvisor::open(std::string socket_path)
@@ -111,13 +108,23 @@ int32_t scap_gvisor::close()
 
 int32_t scap_gvisor::start_capture()
 {
+	m_scap_buf.buf = malloc(GVISOR_INITIAL_EVENT_BUFFER_SIZE);
+	if(!m_scap_buf.buf)
+	{
+		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot allocate gvisor buffer of size %d", GVISOR_INITIAL_EVENT_BUFFER_SIZE);
+		return SCAP_FAILURE;
+	}
+	m_scap_buf.size = GVISOR_INITIAL_EVENT_BUFFER_SIZE;
+
 	m_accept_thread = std::thread(accept_thread, m_listenfd, m_epollfd);
 	m_accept_thread.detach();
+
     return SCAP_SUCCESS;
 }
 
 int32_t scap_gvisor::stop_capture()
 {
+	free(m_scap_buf.buf);
     return SCAP_SUCCESS;
 }
 
@@ -125,7 +132,15 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 {
 	struct epoll_event evts[GVISOR_MAX_READY_SANDBOXES];
 	char message[GVISOR_MAX_MESSAGE_SIZE];
-	uint32_t status;
+	struct parse_result parse_result;
+
+	// if there are still events to process do it before getting more
+	if(!m_event_queue.empty())
+	{
+		*pevent = m_event_queue.front();
+		m_event_queue.pop_front();
+		return SCAP_SUCCESS;
+	}
 
 	int nfds = epoll_wait(m_epollfd, evts, GVISOR_MAX_READY_SANDBOXES, -1);
 	if (nfds < 0)
@@ -148,47 +163,47 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 				return SCAP_TIMEOUT;
 			}
 
-			// if an event was processed free it
-			if(!m_event_queue.empty())
+			scap_const_sized_buffer gvisor_msg = {.buf = (void *)message, .size = nbytes};
+
+parse:
+			parse_result = parse_gvisor_proto(gvisor_msg, m_scap_buf);
+			if(parse_result.status == SCAP_INPUT_TOO_SMALL)
 			{
-				scap_sized_buffer previous_event = m_event_queue.front();
-				m_event_queue.pop_front();
-
-				free(previous_event.buf);
+				m_scap_buf.buf = realloc(m_scap_buf.buf, parse_result.size);
+				if(!m_scap_buf.buf)
+				{
+					snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot realloc gvisor buffer");
+					return SCAP_FAILURE;
+				}
+				goto parse;
 			}
-
-			// if there are still events to process do it before getting more
-			if(!m_event_queue.empty())
+			else if(parse_result.status != SCAP_SUCCESS)
 			{
-				scap_sized_buffer event = m_event_queue.front();
-				*pevent = static_cast<scap_evt*>(event.buf);
-				return SCAP_SUCCESS;
+				snprintf(m_lasterr, SCAP_LASTERR_SIZE, parse_result.error.c_str());
+				return parse_result.status;
 			}
 
-			std::vector<scap_sized_buffer> events = parse_gvisor_proto(message, nbytes, m_lasterr, &status);
-			if(status != SCAP_SUCCESS)
+			for(scap_evt *evt : parse_result.scap_events)
 			{
-				return status;
+				m_event_queue.push_back(evt);
 			}
 
-			for(scap_sized_buffer evt_buf : events) {
-				m_event_queue.push_back(evt_buf);
-			}
-
-			*pevent = static_cast<scap_evt*>(m_event_queue.front().buf);
+			*pevent = m_event_queue.front();
+			m_event_queue.pop_front();
 			return SCAP_SUCCESS;
 		}
 
-		if ((evts[i].events & (EPOLLRDHUP | EPOLLHUP)) != 0) {
+		if ((evts[i].events & (EPOLLRDHUP | EPOLLHUP)) != 0)
+		{
 			return SCAP_EOF;
 		}
 
-		if (evts[i].events & EPOLLERR) {
+		if (evts[i].events & EPOLLERR)
+		{
 			int socket_error = 0;
 			socklen_t len = sizeof(socket_error);
 			if(getsockopt(evts[i].data.fd, SOL_SOCKET, SO_ERROR, &socket_error, &len))
 			{
-				printf("EPOLL ERROR: %s\n", strerror(socket_error));
 				snprintf(m_lasterr, SCAP_LASTERR_SIZE, "epoll error: %s", strerror(socket_error));
 				return SCAP_FAILURE;
 			}

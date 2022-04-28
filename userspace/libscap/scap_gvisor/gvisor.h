@@ -11,6 +11,7 @@
 
 #define GVISOR_MAX_READY_SANDBOXES 32
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
+#define GVISOR_INITIAL_EVENT_BUFFER_SIZE 1024
 
 class scap_gvisor {
 public:
@@ -30,7 +31,15 @@ private:
     int m_epollfd;
     std::string m_socket_path;
     std::thread m_accept_thread;
-    std::deque<scap_sized_buffer> m_event_queue{};
+    std::deque<scap_evt *> m_event_queue{}; 
+    scap_sized_buffer m_scap_buf; 
 };
 
-std::vector<scap_sized_buffer> parse_gvisor_proto(const char *buf, int bytes, char *lasterr, uint32_t *status);
+struct parse_result {
+	uint32_t status;
+	std::string error;
+	size_t size;
+	std::vector<scap_evt *> scap_events;
+};
+
+parse_result parse_gvisor_proto(scap_const_sized_buffer gvisor_msg, scap_sized_buffer scap_buf);
