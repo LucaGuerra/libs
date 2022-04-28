@@ -13,6 +13,14 @@
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
 #define GVISOR_INITIAL_EVENT_BUFFER_SIZE 1024
 
+struct parse_result {
+	uint32_t status;
+	std::string error;
+	size_t size;
+	std::vector<scap_evt*> scap_events;
+};
+typedef struct parse_result parse_result;
+
 class scap_gvisor {
 public:
     scap_gvisor(char *lasterr);
@@ -36,13 +44,5 @@ private:
     std::deque<scap_evt *> m_event_queue{}; 
     scap_sized_buffer m_scap_buf; 
 };
-
-struct parse_result {
-	uint32_t status;
-	std::string error;
-	size_t size;
-	std::vector<scap_evt*> scap_events;
-};
-typedef struct parse_result parse_result;
 
 struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf, struct scap_sized_buffer scap_buf);

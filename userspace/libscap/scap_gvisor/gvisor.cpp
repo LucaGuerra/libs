@@ -10,6 +10,8 @@
 
 #include "gvisor.h"
 
+#include "../../common/strlcpy.h"
+
 void accept_thread(int listenfd, int epollfd)
 {
 	while(true)
@@ -171,7 +173,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 
 	for (int i = 0; i < nfds; ++i) {
 		if (evts[i].events & EPOLLIN) {
-			ssize_t nbytes = read(evts[i].data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
+			size_t nbytes = read(evts[i].data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
 			if(nbytes == -1)
 			{
 				snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Error reading from gvisor client: %s", strerror(errno));
@@ -187,7 +189,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 			parse_result = parse(gvisor_msg);
 			if(parse_result.status != SCAP_SUCCESS)
 			{
-				snprintf(m_lasterr, SCAP_LASTERR_SIZE, parse_result.error.c_str());
+				strlcpy(m_lasterr, parse_result.error.c_str(), SCAP_LASTERR_SIZE);
 				return parse_result.status;
 			}
 

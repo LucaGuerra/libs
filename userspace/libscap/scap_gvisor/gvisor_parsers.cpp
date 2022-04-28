@@ -81,7 +81,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 	if(!any.UnpackTo(&gvisor_evt))
 	{
 		ret.status = SCAP_FAILURE;
-		ret.error =  std::string("Error unpacking container start protobuf message: ") << any.DebugString();
+		ret.error =  std::string("Error unpacking container start protobuf message: ") + any.DebugString();
 		return ret;
 	}
 
@@ -122,7 +122,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
 		evt->tid = tid_field;
 		ret.scap_events.push_back(evt);
-		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.buf = (char*)scap_buf.buf + ret.size;
 		event_buf.size = scap_buf.size - ret.size;
 	} else {
 		event_buf.buf = nullptr;
@@ -165,7 +165,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
 		evt->tid = tid_field;
 		ret.scap_events.push_back(evt);
-		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.buf = (char*)scap_buf.buf + ret.size;
 		event_buf.size = scap_buf.size - ret.size;
 	} else {
 		event_buf.buf = nullptr;
@@ -189,7 +189,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
 		evt->tid = tid_field;
 		ret.scap_events.push_back(evt);
-		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.buf = (char*)scap_buf.buf + ret.size;
 		event_buf.size = scap_buf.size - ret.size;
 	} else {
 		event_buf.buf = nullptr;
@@ -232,7 +232,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
 		evt->tid = tid_field;
 		ret.scap_events.push_back(evt);
-		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.buf = (char*)scap_buf.buf + ret.size;
 		event_buf.size = scap_buf.size - ret.size;
 	} else {
 		event_buf.buf = nullptr;
@@ -254,7 +254,7 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 	if(!any.UnpackTo(&gvisor_evt))
 	{
 		ret.status = SCAP_FAILURE;
-		ret.error = std::string("Error unpacking connect protobuf message: ") << any.DebugString();
+		ret.error = std::string("Error unpacking connect protobuf message: ") + any.DebugString();
 		return ret;
 	}
 
@@ -323,7 +323,7 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 	return ret;
 }
 
-struct parse_result parse_clone(const google::protobuf::Any &any, scap_sized_buffer scap_buf, bool is_fork)
+struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer scap_buf, bool is_fork)
 {
 	struct parse_result ret;
 	ret.status = SCAP_SUCCESS;
@@ -358,7 +358,7 @@ struct parse_result parse_clone(const google::protobuf::Any &any, scap_sized_buf
 							  gvisor_evt.common().thread_group_id());
 	} else
 	{
-		ret.status = scap_event_encode_params(event_buf, lasterr, PPME_SYSCALL_CLONE_20_E, 0);
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_E, 0);
 	}
 
 	if (ret.status == SCAP_FAILURE) {
@@ -388,7 +388,7 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 	if(!any.UnpackTo(&gvisor_evt))
 	{
 		ret.status = SCAP_FAILURE;
-		ret.error = std::string("Error unpacking connect protobuf message: ") << any.DebugString();
+		ret.error = std::string("Error unpacking connect protobuf message: ") + any.DebugString();
 		return ret;
 	}
 
@@ -703,7 +703,7 @@ std::map<std::string, Callback> dispatchers = {
 	// {"gvisor.syscall.Syscall", parse_generic_syscall},
 	// {"gvisor.syscall.Read", parse_read},
 	// {"gvisor.syscall.Connect", parse_connect},
-	{"gvisor.syscall.Open", parse_open},
+	// {"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
 	{"gvisor.container.Start", parse_container_start},
@@ -712,28 +712,30 @@ std::map<std::string, Callback> dispatchers = {
 struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf, struct scap_sized_buffer scap_buf)
 {
 	struct parse_result ret = {0};
+	const char *buf = static_cast<const char*>(gvisor_buf.buf);
 	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
 	if(message_size > maxEventSize)
 	{
-		ret.error = std::string("Invalid header size ") << message_size;
+		ret.error = std::string("Invalid header size ") + std::to_string(message_size);
 		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
+	// XXX this will be changed with protocol update
 	const header *hdr = reinterpret_cast<const header *>(&buf[4]);
 	size_t payload_size = message_size - 4 - hdr->header_size;
 	if(payload_size <= 0)
 	{
-		ret.error = std::string("Header size (") << hdr->header_size << ") is larger than message " << message_size;
+		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(message_size);
 		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
 	const char *proto = &buf[4 + hdr->header_size];
-	size_t proto_size = bytes - 4 - hdr->header_size;
+	size_t proto_size = gvisor_buf.size - 4 - hdr->header_size;
 	if(proto_size < payload_size)
 	{
-		ret.error = std::string("Message was truncated, size: ") << proto_size << ", expected: " << payload_size;
+		ret.error = std::string("Message was truncated, size: ") + std::to_string(proto_size) + ", expected: " + std::to_string(payload_size);
 		ret.status = SCAP_FAILURE;
 		return ret;
 	}
