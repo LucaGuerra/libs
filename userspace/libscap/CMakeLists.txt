@@ -101,13 +101,11 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(scap_gvisor)
-add_subdirectory(inmem_generator) # <- add this for the poc inmemory generator
 
 add_library(scap STATIC
 	${targetfiles})
 
 target_link_libraries(scap scap_gvisor)
-target_link_libraries(scap scap_inmem_generator) # <- add this for the poc inmemory generator
 
 if(USE_BUNDLED_ZLIB AND NOT MINIMAL_BUILD)
 	add_dependencies(scap zlib)

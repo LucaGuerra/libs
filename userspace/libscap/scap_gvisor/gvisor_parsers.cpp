@@ -25,7 +25,7 @@
 #include "pkg/sentry/seccheck/points/sentry.pb.h"
 #include "pkg/sentry/seccheck/points/container.pb.h"
 
-typedef std::function<int32_t(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)> Callback;
+typedef std::function<parse_result(const google::protobuf::Any &any, scap_sized_buffer scap_buf)> Callback;
 
 constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
 constexpr size_t maxEventSize = 300 * 1024;
@@ -66,16 +66,22 @@ uint64_t get_time_ns()
     return (int64_t)(tv.tv_sec) * (int64_t)1000000000 + (int64_t)(tv.tv_nsec);
 }
 
-std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any &any, char *lasterr, uint32_t *status)
+parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
 {
-	*status = SCAP_SUCCESS;
-	std::vector<scap_sized_buffer> ret{};
-	scap_sized_buffer event_buf = {0};
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	scap_sized_buffer event_buf = scap_buf;
+	size_t event_size;
 
 	gvisor::container::Start gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking container start protobuf message: %s", any.DebugString().c_str());
+		ret.status = SCAP_FAILURE;
+		ret.error =  std::string("Error unpacking container start protobuf message: ") << any.DebugString();
 		return ret;
 	}
 
@@ -101,26 +107,31 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 	uint64_t tid_field = generate_tid_field(1, container_id);
 	uint64_t tgid_field = generate_tid_field(1, container_id);
 
-	//	/* PPME_CLONE_20_E */{"clone", EC_PROCESS, EF_MODIFIES_STATE, 0},
+	// encode clone entry
 
-	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_E, 0);
-
-	if (*status != SCAP_SUCCESS) {
+	ret.status = scap_event_encode_params(event_buf, &event_size, scap_err, PPME_SYSCALL_CLONE_20_E, 0);
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
 		return ret;
 	}
 
-	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
-	evt->ts = get_time_ns();
-	evt->tid = tid_field;
+	ret.size += event_size;
 
-	ret.push_back(event_buf);
+	if (ret.size <= scap_buf.size) {
+		scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
+		evt->tid = tid_field;
+		ret.scap_events.push_back(evt);
+		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.size = scap_buf.size - ret.size;
+	} else {
+		event_buf.buf = nullptr;
+		event_buf.size = 0;
+	}
 
-	// ---
+	// encode clone exit
 
-	event_buf.buf = nullptr;
-	event_buf.size = 0;
-
-	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_CLONE_20_X, 20,
+	ret.status = scap_event_encode_params(event_buf, &event_size, scap_err, PPME_SYSCALL_CLONE_20_X, 20,
 						0, // child tid (0 in the child)
 						gvisor_evt.args(0).c_str(), // actual exe missing
 						scap_const_sized_buffer{args.data(), args.size()},
@@ -142,39 +153,52 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 						1, // vtid
 						1); // vpid
 
-	if (*status != SCAP_SUCCESS) {
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
 		return ret;
 	}
 
-	evt = static_cast<scap_evt*>(event_buf.buf);
-	evt->ts = get_time_ns();
-	evt->tid = tid_field;
+	ret.size += event_size;
 
-	ret.push_back(event_buf);
+	if (ret.size <= scap_buf.size) {
+		scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
+		evt->tid = tid_field;
+		ret.scap_events.push_back(evt);
+		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.size = scap_buf.size - ret.size;
+	} else {
+		event_buf.buf = nullptr;
+		event_buf.size = 0;
+	}
 
-	// ---
+	// encode execve entry
 
-	event_buf.buf = nullptr;
-	event_buf.size = 0;
+	ret.status = scap_event_encode_params(event_buf, &event_size, scap_err, PPME_SYSCALL_EXECVE_19_E,
+		1, gvisor_evt.args(0).c_str()); // TODO actual exe missing
 
-	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_E, 1, gvisor_evt.args(0).c_str()); // actual exe missing
-
-	if (*status != SCAP_SUCCESS) {
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
 		return ret;
 	}
 
-	evt = static_cast<scap_evt*>(event_buf.buf);
-	evt->ts = get_time_ns();
-	evt->tid = tid_field;
+	ret.size += event_size;
 
-	ret.push_back(event_buf);
+	if (ret.size <= scap_buf.size) {
+		scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
+		evt->tid = tid_field;
+		ret.scap_events.push_back(evt);
+		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.size = scap_buf.size - ret.size;
+	} else {
+		event_buf.buf = nullptr;
+		event_buf.size = 0;
+	}
 
-	// ---
+	// encode execve exit
 
-	event_buf.buf = nullptr;
-	event_buf.size = 0;
-
-	*status = scap_event_encode_params(&event_buf, lasterr, PPME_SYSCALL_EXECVE_19_X, 20,
+	ret.status = scap_event_encode_params(event_buf, &event_size, scap_err, PPME_SYSCALL_EXECVE_19_X, 20,
 						0, // res
 						gvisor_evt.args(0).c_str(), // actual exe missing
 						scap_const_sized_buffer{args.data(), args.size()},
@@ -196,62 +220,224 @@ std::vector<scap_sized_buffer> parse_container_start(const google::protobuf::Any
 						0, // loginuid
 						0); // flags (not necessary)
 	
-	if (*status != SCAP_SUCCESS) {
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
 		return ret;
 	}
 
-	evt = static_cast<scap_evt*>(event_buf.buf);
+	ret.size += event_size;
 
-	evt->ts = get_time_ns();
-	evt->tid = tid_field;
-
-	ret.push_back(event_buf);
-
-	// -----
+	if (ret.size <= scap_buf.size) {
+		scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+		evt->ts = get_time_ns(); // TODO this is not supposed to be like that
+		evt->tid = tid_field;
+		ret.scap_events.push_back(evt);
+		event_buf.buf = scap_buf.buf + ret.size;
+		event_buf.size = scap_buf.size - ret.size;
+	} else {
+		event_buf.buf = nullptr;
+		event_buf.size = 0;
+	}
 
 	return ret;
 }
 
-int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
 {
-	uint32_t ret;
-	gvisor::syscall::Read gvisor_evt;
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	gvisor::syscall::Execve gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking read protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking connect protobuf message: ") << any.DebugString();
+		return ret;
 	}
 
-	ppm_event_type evt_type;
-
-	if(!gvisor_evt.has_exit())
+	if(gvisor_evt.has_exit())
 	{
-		evt_type = PPME_SYSCALL_READ_E;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
-							gvisor_evt.fd(),
-							gvisor_evt.count());
-		if(ret != SCAP_SUCCESS) {
-			return ret;
+		std::string args;
+		for(int j = 0; j < gvisor_evt.argv_size(); j++) {
+			args += gvisor_evt.argv(j);
+			args.push_back('\0');
 		}
-	}
-	else
+
+		std::string env;
+		for(int j = 0; j < gvisor_evt.envv_size(); j++) {
+			env += gvisor_evt.envv(j);
+			env.push_back('\0');
+		}
+
+		std::string comm, pathname;
+		pathname = gvisor_evt.pathname();
+		comm = pathname.substr(pathname.find_last_of("/") + 1);
+
+		auto& common = gvisor_evt.common();
+
+		std::string cgroups = "gvisor_container_id=/";
+		cgroups += common.container_id();
+
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_EXECVE_19_X, 20,
+							gvisor_evt.exit().result(), // res
+							gvisor_evt.pathname().c_str(), // exe
+							scap_const_sized_buffer{args.data(), args.size()}, // args
+							generate_tid_field(common.thread_id(), common.container_id()), // tid
+							generate_tid_field(common.thread_group_id(), common.container_id()), // pid
+							-1, // ptid is only needed if we don't have the corresponding clone event
+							"", // cwd
+							75000, // fdlimit ?
+							0, // pgft_maj
+							0, // pgft_min
+							0, // vm_size
+							0, // vm_rss
+							0, // vm_swap
+							comm.c_str(), // comm
+							scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
+							scap_const_sized_buffer{env.data(), env.size()}, // env
+							0, // tty
+							0, // pgid
+							0, // loginuid
+							0); // flags (not necessary)
+
+	} else 
 	{
-		evt_type = PPME_SYSCALL_READ_X;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 3,
-								gvisor_evt.exit().result(),
-								scap_const_sized_buffer{gvisor_evt.data().data(),
-								gvisor_evt.data().size()});
-		if(ret != SCAP_SUCCESS) {
-			return ret;
-		}
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_EXECVE_19_E, 1, gvisor_evt.pathname().c_str());
 	}
 
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
+	}
 
+	if (ret.status != SCAP_SUCCESS) {
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
 	fill_common(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
 
-	return SCAP_SUCCESS;
+	return ret;
 }
+
+struct parse_result parse_clone(const google::protobuf::Any &any, scap_sized_buffer scap_buf, bool is_fork)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	auto& common = gvisor_evt.common();
+
+	if(gvisor_evt.has_exit())
+	{
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_X, 20,
+							  gvisor_evt.exit().result(), /* res */
+							  "", /* exe */
+							  scap_const_sized_buffer{"", 0}, /* args */
+							  generate_tid_field(common.thread_id(), common.container_id()), // tid
+							  generate_tid_field(common.thread_group_id(), common.container_id()), // pid
+							  0, // ptid  -- we could get it from gvisor
+							  "", /* cwd */
+							  16,
+							  0,
+							  0,
+							  0,
+							  0,
+							  0,
+							  "", /* comm */
+							  scap_const_sized_buffer{"", 0},
+							  is_fork ? PPM_CL_CLONE_CHILD_CLEARTID|PPM_CL_CLONE_CHILD_SETTID : clone_flags_to_scap(gvisor_evt.arg1()),
+							  0,
+							  0,
+							  gvisor_evt.common().thread_id(),
+							  gvisor_evt.common().thread_group_id());
+	} else
+	{
+		ret.status = scap_event_encode_params(event_buf, lasterr, PPME_SYSCALL_CLONE_20_E, 0);
+	}
+
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
+	}
+	
+	if (ret.status != SCAP_SUCCESS) {
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
+	fill_common(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
+struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	gvisor::sentry::CloneInfo gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking connect protobuf message: ") << any.DebugString();
+		return ret;
+	}
+
+	auto& common = gvisor_evt.common();
+
+	std::string cgroups = "gvisor_container_id=/";
+	cgroups += common.container_id();
+
+	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), common.container_id());
+
+	ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_X, 20,
+							  0, /* res */
+							  common.process_name().c_str(), /* exe */
+							  scap_const_sized_buffer{"", 0}, /* args */
+							  tid_field, // /* tid */
+							  generate_tid_field(gvisor_evt.created_thread_group_id(), common.container_id()), /* pid */
+							  generate_tid_field(common.thread_id(), common.container_id()), /* ptid */
+							  "", /* cwd */
+							  16, 0, 0, 0, 0, 0,
+							  common.process_name().c_str(), /* comm */
+							  scap_const_sized_buffer{cgroups.c_str(), cgroups.size() + 1},
+							  0,
+							  0,
+							  0,
+							  gvisor_evt.created_thread_id(),
+							  gvisor_evt.created_thread_group_id());
+
+	if (ret.status == SCAP_FAILURE) {
+		ret.error = scap_err;
+	}
+	
+	if (ret.status != SCAP_SUCCESS) {
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
+	evt->ts = common.time_ns();
+	evt->tid = tid_field;
+
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
+// XXX TODO -- these can be refactored later
+
+#if 0
+
+// TODO refactor
 
 int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
@@ -284,6 +470,47 @@ int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	else
 	{
 		ret = scap_event_encode_params(event_buf, lasterr, PPME_SYSCALL_OPEN_E, 0);
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
+
+	fill_common(evt, gvisor_evt);
+
+	return SCAP_SUCCESS;
+}
+
+int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+{
+	uint32_t ret;
+	gvisor::syscall::Read gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking read protobuf message: %s", any.DebugString().c_str());
+		return SCAP_FAILURE;
+	}
+
+	ppm_event_type evt_type;
+
+	if(!gvisor_evt.has_exit())
+	{
+		evt_type = PPME_SYSCALL_READ_E;
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
+							gvisor_evt.fd(),
+							gvisor_evt.count());
+		if(ret != SCAP_SUCCESS) {
+			return ret;
+		}
+	}
+	else
+	{
+		evt_type = PPME_SYSCALL_READ_X;
+		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 3,
+								gvisor_evt.exit().result(),
+								scap_const_sized_buffer{gvisor_evt.data().data(),
+								gvisor_evt.data().size()});
 		if(ret != SCAP_SUCCESS) {
 			return ret;
 		}
@@ -395,130 +622,6 @@ int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_size
 	return SCAP_SUCCESS;
 }
 
-int32_t parse_execve(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
-{
-	uint32_t ret = SCAP_SUCCESS;
-	gvisor::syscall::Execve gvisor_evt;
-	if(!any.UnpackTo(&gvisor_evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
-
-	ppm_event_type evt_type;
-
-	if(gvisor_evt.has_exit())
-	{
-		evt_type = PPME_SYSCALL_EXECVE_19_X;
-
-		std::string args;
-		for(int j = 0; j < gvisor_evt.argv_size(); j++) {
-			args += gvisor_evt.argv(j);
-			args.push_back('\0');
-		}
-
-		std::string env;
-		for(int j = 0; j < gvisor_evt.envv_size(); j++) {
-			env += gvisor_evt.envv(j);
-			env.push_back('\0');
-		}
-
-		std::string comm, pathname;
-		pathname = gvisor_evt.pathname();
-		comm = pathname.substr(pathname.find_last_of("/") + 1);
-
-		auto& common = gvisor_evt.common();
-
-		std::string cgroups = "gvisor_container_id=/";
-		cgroups += common.container_id();
-
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
-							gvisor_evt.exit().result(), // res
-							gvisor_evt.pathname().c_str(), // exe
-							scap_const_sized_buffer{args.data(), args.size()}, // args
-							generate_tid_field(common.thread_id(), common.container_id()), // tid
-							generate_tid_field(common.thread_group_id(), common.container_id()), // pid
-							-1, // ptid is only needed if we don't have the corresponding clone event
-							"", // cwd
-							75000, // fdlimit ?
-							0, // pgft_maj
-							0, // pgft_min
-							0, // vm_size
-							0, // vm_rss
-							0, // vm_swap
-							comm.c_str(), // comm
-							scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
-							scap_const_sized_buffer{env.data(), env.size()}, // env
-							0, // tty
-							0, // pgid
-							0, // loginuid
-							0); // flags (not necessary)
-		if (ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	} else 
-	{
-		evt_type = PPME_SYSCALL_EXECVE_19_E;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 1, gvisor_evt.pathname().c_str());
-		if (ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	}
-
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
-	fill_common(evt, gvisor_evt);
-
-	return ret;
-}
-
-int32_t parse_clone(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf, bool is_fork)
-{
-	uint32_t ret = SCAP_SUCCESS;
-	ppm_event_type evt_type;
-
-	auto& common = gvisor_evt.common();
-
-	if(gvisor_evt.has_exit())
-	{
-		evt_type = PPME_SYSCALL_CLONE_20_X;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
-							  gvisor_evt.exit().result(), /* res */
-							  "", /* exe */
-							  scap_const_sized_buffer{"", 0}, /* args */
-							  generate_tid_field(common.thread_id(), common.container_id()), // tid
-							  generate_tid_field(common.thread_group_id(), common.container_id()), // pid
-							  0, // ptid  -- we could get it from gvisor
-							  "", /* cwd */
-							  16,
-							  0,
-							  0,
-							  0,
-							  0,
-							  0,
-							  "", /* comm */
-							  scap_const_sized_buffer{"", 0},
-							  is_fork ? PPM_CL_CLONE_CHILD_CLEARTID|PPM_CL_CLONE_CHILD_SETTID : clone_flags_to_scap(gvisor_evt.arg1()),
-							  0,
-							  0,
-							  gvisor_evt.common().thread_id(),
-							  gvisor_evt.common().thread_group_id());
-
-	} else
-	{
-		evt_type = PPME_SYSCALL_CLONE_20_E;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 0);
-		if (ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	}
-
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
-	fill_common(evt, gvisor_evt);
-
-	return ret;
-}
 
 int32_t parse_socket(const gvisor::syscall::Syscall &gvisor_evt, char *lasterr, scap_sized_buffer *event_buf)
 {
@@ -577,48 +680,8 @@ int32_t parse_generic_syscall(const google::protobuf::Any &any, char *lasterr, s
 	return SCAP_TIMEOUT;
 }
 
-int32_t parse_sentry_clone(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
-{
-	uint32_t ret;
-	gvisor::sentry::CloneInfo gvisor_evt;
-	if(!any.UnpackTo(&gvisor_evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
+#endif
 
-	ppm_event_type evt_type = PPME_SYSCALL_CLONE_20_X;
-	auto& common = gvisor_evt.common();
-
-	std::string cgroups = "gvisor_container_id=/";
-	cgroups += common.container_id();
-
-	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), common.container_id());
-
-	ret = scap_event_encode_params(event_buf, lasterr, evt_type, 20,
-							  0, /* res */
-							  common.process_name().c_str(), /* exe */
-							  scap_const_sized_buffer{"", 0}, /* args */
-							  tid_field, // /* tid */
-							  generate_tid_field(gvisor_evt.created_thread_group_id(), common.container_id()), /* pid */
-							  generate_tid_field(common.thread_id(), common.container_id()), /* ptid */
-							  "", /* cwd */
-							  16, 0, 0, 0, 0, 0,
-							  common.process_name().c_str(), /* comm */
-							  scap_const_sized_buffer{cgroups.c_str(), cgroups.size() + 1},
-							  0,
-							  0,
-							  0,
-							  gvisor_evt.created_thread_id(),
-							  gvisor_evt.created_thread_group_id());
-
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
-	evt->ts = common.time_ns();
-	evt->tid = tid_field;
-
-	return ret;
-}
 
 /*
 int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
@@ -637,22 +700,23 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 */
 
 std::map<std::string, Callback> dispatchers = {
-	{"gvisor.syscall.Syscall", parse_generic_syscall},
-	{"gvisor.syscall.Read", parse_read},
-	{"gvisor.syscall.Connect", parse_connect},
+	// {"gvisor.syscall.Syscall", parse_generic_syscall},
+	// {"gvisor.syscall.Read", parse_read},
+	// {"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
+	{"gvisor.container.Start", parse_container_start},
 };
 
-std::vector<scap_sized_buffer> parse_gvisor_proto(const char *buf, int bytes, char *lasterr, uint32_t *status)
+struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf, struct scap_sized_buffer scap_buf)
 {
-	std::vector<scap_sized_buffer> ret{};
+	struct parse_result ret = {0};
 	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
 	if(message_size > maxEventSize)
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Invalid header size %u\n", message_size);
-		*status = SCAP_FAILURE;
+		ret.error = std::string("Invalid header size ") << message_size;
+		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
@@ -660,8 +724,8 @@ std::vector<scap_sized_buffer> parse_gvisor_proto(const char *buf, int bytes, ch
 	size_t payload_size = message_size - 4 - hdr->header_size;
 	if(payload_size <= 0)
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Header size (%u) is larger than message %u", hdr->header_size, message_size);
-		*status = SCAP_FAILURE;
+		ret.error = std::string("Header size (") << hdr->header_size << ") is larger than message " << message_size;
+		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
@@ -669,47 +733,36 @@ std::vector<scap_sized_buffer> parse_gvisor_proto(const char *buf, int bytes, ch
 	size_t proto_size = bytes - 4 - hdr->header_size;
 	if(proto_size < payload_size)
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Message was truncated, size: %lu, expected: %zu\n", proto_size, payload_size);
-		*status = SCAP_FAILURE;
+		ret.error = std::string("Message was truncated, size: ") << proto_size << ", expected: " << payload_size;
+		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
 	google::protobuf::Any any;
 	if(!any.ParseFromArray(proto, proto_size))
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Invalid protobuf message");
-		*status = SCAP_FAILURE;
+		ret.error = std::string("Invalid protobuf message");
+		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
 	auto url = any.type_url();
 	if(url.size() <= prefixLen)
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Invalid URL %s\n", any.type_url().data());
-		*status = SCAP_FAILURE;
+		ret.error = std::string("Invalid URL ") + url;
+		ret.status = SCAP_FAILURE;
 		return ret;
 	}
 
 	const std::string name = url.substr(prefixLen);
 
-	// Container start is the only gvisor event that generates multiple Falco events
-	if(name == "gvisor.container.Start")
-	{
-		return parse_container_start(any, lasterr, status);
-	}
-
-	// Every other gvisor event only returns one Falco event
 	Callback cb = dispatchers[name];
 	if(cb == nullptr)
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "No callback registered for %s\n", name.c_str());
-		*status = SCAP_TIMEOUT;
+		ret.error = std::string("No callback registered for ") + name;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
-	scap_sized_buffer single_event_buf = {0};
-	*status = cb(any, lasterr, &single_event_buf);
-	ret.push_back(single_event_buf);
-
-	return ret;
+	return cb(any, scap_buf);
 }

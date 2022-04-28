@@ -825,9 +825,6 @@ scap_t* scap_open_udig_int(char *error, int32_t *rc,
 
 extern struct scap_vtable gvisor_vtable;
 
-// uncomment to use the test inmem generator
-extern struct scap_vtable inmem_generator_vtable;
-
 scap_t* scap_open_gvisor_int(char *error,
 				  const char *gvisor_socket,
 			      int32_t *rc,
@@ -850,8 +847,6 @@ scap_t* scap_open_gvisor_int(char *error,
 	}
 
 	handle->m_vtable = &gvisor_vtable;
-	// uncomment here and comment the previous line to use the test inmemory generator
-	//handle->m_vtable = &inmem_generator_vtable;
 	handle->m_ctx = handle->m_vtable->alloc(handle->m_lasterr);
 	if(handle->m_ctx == NULL)
 	{
