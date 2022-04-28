@@ -104,6 +104,12 @@ typedef struct scap_device
 	};
 }scap_device;
 
+struct scap_device_set
+{
+	scap_device* m_devs;
+	uint32_t m_ndevs;
+	uint64_t m_buffer_empty_wait_time_us;
+};
 
 typedef struct scap_tid
 {
@@ -132,8 +138,7 @@ struct scap
 	struct scap_engine_handle m_engine;
 
 	scap_mode_t m_mode;
-	scap_device* m_devs;
-	uint32_t m_ndevs;
+	struct scap_device_set m_dev_set;
 	scap_reader_t* m_reader;
 	char* m_reader_evt_buf;
 	size_t m_reader_evt_buf_size;
@@ -151,7 +156,6 @@ struct scap
 	scap_addrlist* m_addrlist;
 	scap_machine_info m_machine_info;
 	scap_userlist* m_userlist;
-	uint64_t m_buffer_empty_wait_time_us;
 	proc_entry_callback m_proc_callback;
 	void* m_proc_callback_context;
 	struct ppm_proclist_info* m_driver_procinfo;
