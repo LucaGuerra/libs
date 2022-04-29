@@ -145,6 +145,9 @@ parse_result scap_gvisor::parse(scap_const_sized_buffer gvisor_msg)
 			return res;
 		}
 		m_scap_buf.size = res.size;
+	} 
+	else {
+		return res;
 	}
 
 	return parse_gvisor_proto(gvisor_msg, m_scap_buf);
@@ -173,7 +176,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 
 	for (int i = 0; i < nfds; ++i) {
 		if (evts[i].events & EPOLLIN) {
-			size_t nbytes = read(evts[i].data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
+			ssize_t nbytes = read(evts[i].data.fd, message, GVISOR_MAX_MESSAGE_SIZE);
 			if(nbytes == -1)
 			{
 				snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Error reading from gvisor client: %s", strerror(errno));
@@ -185,7 +188,7 @@ int32_t scap_gvisor::next(scap_evt **pevent, uint16_t *pcpuid)
 				return SCAP_TIMEOUT;
 			}
 
-			scap_const_sized_buffer gvisor_msg = {.buf = (void *)message, .size = nbytes};
+			scap_const_sized_buffer gvisor_msg = {.buf = (void *)message, .size = static_cast<size_t>(nbytes)};
 			parse_result = parse(gvisor_msg);
 			if(parse_result.status != SCAP_SUCCESS)
 			{
