@@ -145,7 +145,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 						0, // vm_size
 						0, // vm_rss
 						0, // vm_swap
-						gvisor_evt.args(0).c_str(), // args.c_str() // comm
+						gvisor_evt.args(0).c_str(), // comm
 						scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
 						0, // clone_flags
 						common.credentials().real_uid(), // uid
@@ -308,11 +308,8 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_EXECVE_19_E, 1, gvisor_evt.pathname().c_str());
 	}
 
-	if (ret.status == SCAP_FAILURE) {
-		ret.error = scap_err;
-	}
-
 	if (ret.status != SCAP_SUCCESS) {
+		ret.error = scap_err;
 		return ret;
 	}
 
@@ -361,11 +358,8 @@ struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap
 		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_E, 0);
 	}
 
-	if (ret.status == SCAP_FAILURE) {
-		ret.error = scap_err;
-	}
-	
 	if (ret.status != SCAP_SUCCESS) {
+		ret.error = scap_err;
 		return ret;
 	}
 
@@ -416,14 +410,11 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 							  gvisor_evt.created_thread_id(),
 							  gvisor_evt.created_thread_group_id());
 
-	if (ret.status == SCAP_FAILURE) {
+	if (ret.status != SCAP_FAILURE) {
 		ret.error = scap_err;
-	}
-	
-	if (ret.status != SCAP_SUCCESS) {
 		return ret;
 	}
-
+	
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
 	evt->ts = common.time_ns();
 	evt->tid = tid_field;
@@ -436,51 +427,6 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 // XXX TODO -- these can be refactored later
 
 #if 0
-
-// TODO refactor
-
-int32_t parse_open(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
-{
-	uint32_t ret;
-	gvisor::syscall::Open gvisor_evt;
-	if(!any.UnpackTo(&gvisor_evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking open protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
-
-	ppm_event_type evt_type;
-
-	if(gvisor_evt.has_exit())
-	{
-		evt_type = PPME_SYSCALL_OPEN_X;
-
-		uint32_t flags = gvisor_evt.flags();
-
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 5,
-		    					gvisor_evt.exit().result(),
-								gvisor_evt.pathname().c_str(),
-								open_flags_to_scap(flags),
-								open_modes_to_scap(gvisor_evt.mode(), flags),
-								0); // missing "dev"
-		if(ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	}
-	else
-	{
-		ret = scap_event_encode_params(event_buf, lasterr, PPME_SYSCALL_OPEN_E, 0);
-		if(ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	}
-
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
-	fill_common(evt, gvisor_evt);
-
-	return SCAP_SUCCESS;
-}
 
 int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
 {
@@ -699,11 +645,50 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 }
 */
 
+struct parse_result parse_open(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
+{
+	parse_result ret;
+	char scap_err[SCAP_LASTERR_SIZE];
+	gvisor::syscall::Open gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
+		return SCAP_FAILURE;
+	}
+
+	if(gvisor_evt.has_exit())
+	{
+		uint32_t flags = gvisor_evt.flags();
+
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_OPEN_X, 5,
+		    					gvisor_evt.exit().result(),
+								gvisor_evt.pathname().c_str(),
+								open_flags_to_scap(flags),
+								open_modes_to_scap(gvisor_evt.mode(), flags),
+								0); // missing "dev"
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_OPEN_E, 0);
+	}
+
+	if(ret.status != SCAP_SUCCESS) {
+		ret.error = scap_err;
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
+	fill_common(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
 std::map<std::string, Callback> dispatchers = {
 	// {"gvisor.syscall.Syscall", parse_generic_syscall},
 	// {"gvisor.syscall.Read", parse_read},
 	// {"gvisor.syscall.Connect", parse_connect},
-	// {"gvisor.syscall.Open", parse_open},
+	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
 	{"gvisor.container.Start", parse_container_start},
@@ -731,6 +716,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 		return ret;
 	}
 
+	// TODO this will change with a protocol update
 	const char *proto = &buf[4 + hdr->header_size];
 	size_t proto_size = gvisor_buf.size - 4 - hdr->header_size;
 	if(proto_size < payload_size)
