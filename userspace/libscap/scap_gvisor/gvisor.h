@@ -11,8 +11,15 @@
 
 #define GVISOR_MAX_READY_SANDBOXES 32
 #define GVISOR_MAX_MESSAGE_SIZE 300 * 1024
-#define GVISOR_INITIAL_EVENT_BUFFER_SIZE 1024
+#define GVISOR_INITIAL_EVENT_BUFFER_SIZE 32
 
+#pragma pack(push, 1)
+struct header
+{
+	uint16_t header_size;
+	uint32_t dropped_count;
+};
+#pragma pack(pop)
 struct parse_result {
 	uint32_t status;
 	std::string error;

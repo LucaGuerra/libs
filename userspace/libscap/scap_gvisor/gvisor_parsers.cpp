@@ -30,13 +30,6 @@ typedef std::function<parse_result(const google::protobuf::Any &any, scap_sized_
 constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
 constexpr size_t maxEventSize = 300 * 1024;
 
-#pragma pack(push, 1)
-struct header
-{
-	uint16_t header_size;
-	uint32_t dropped_count;
-};
-#pragma pack(pop)
 
 // In gVisor there's no concept of tid and tgid but only vtid and vtgid.
 // However, to fit into sinsp we do need values for tid and tgid.

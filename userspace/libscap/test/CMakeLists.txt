@@ -14,10 +14,13 @@
 # limitations under the License.
 #
 
-include_directories("..")
+include(protobuf)
+include_directories("..", "../scap_gvisor", ${CMAKE_CURRENT_BINARY_DIR}/../scap_gvisor/)
 
 set(LIBSCAP_UNIT_TESTS_SOURCES
-    scap_event.ut.cpp
+    # scap_event.ut.cpp
+	# TODO readd scap_event unit test
+	scap_gvisor_parsers.ut.cpp
 )
 
 add_executable(unit-test-libscap ${LIBSCAP_UNIT_TESTS_SOURCES})
@@ -35,3 +38,5 @@ add_custom_target(run-unit-test-libscap
 	DEPENDS unit-test-libscap
 	COMMAND unit-test-libscap
 )
+
+set_property(TARGET run-unit-test-libscap PROPERTY CXX_STANDARD 14)
