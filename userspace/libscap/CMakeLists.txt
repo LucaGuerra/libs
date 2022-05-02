@@ -80,12 +80,6 @@ list(APPEND targetfiles
 	../../driver/flags_table.c
 	ringbuffer/devset.c)
 
-if(NOT APPLE)
-	list(APPEND targetfiles
-		engine/udig/scap_udig.c)
-endif()
-
-
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	list(APPEND targetfiles
 		scap_bpf.c
@@ -115,8 +109,7 @@ if (CMAKE_SYSTEM_NAME MATCHES "SunOS")
 		socket nsl)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
 	target_link_libraries(scap
-		elf
-		rt)
+		elf)
 elseif (WIN32)
 	target_link_libraries(scap
 		Ws2_32.lib)
@@ -178,3 +171,7 @@ target_link_libraries(scap scap_engine_nodriver)
 add_definitions(-DHAS_ENGINE_SOURCE_PLUGIN)
 add_subdirectory(engine/source_plugin)
 target_link_libraries(scap scap_engine_source_plugin)
+
+add_definitions(-DHAS_ENGINE_UDIG)
+add_subdirectory(engine/udig)
+target_link_libraries(scap scap_engine_udig)
