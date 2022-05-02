@@ -469,105 +469,6 @@ int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_b
 	return SCAP_SUCCESS;
 }
 
-int32_t parse_connect(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
-{
-	uint32_t ret;
-	gvisor::syscall::Connect gvisor_evt;
-	if(!any.UnpackTo(&gvisor_evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
-
-	ppm_event_type evt_type;
-
-	if(gvisor_evt.has_exit())
-	{
-		char targetbuf[256]; // TODO: allocate dynamically with proper length?
-		evt_type = PPME_SOCKET_CONNECT_X;
-		sockaddr *addr = (sockaddr *)gvisor_evt.address().data();
-
-		// TODO: family to scap, source side of the connection
-		switch(addr->sa_family)
-		{
-			case AF_INET: 
-			{
-				sockaddr_in *inet_addr = (sockaddr_in *)addr;
-				uint16_t dport = ntohs(inet_addr->sin_port);
-				memcpy(targetbuf, &inet_addr->sin_family, sizeof(uint8_t));
-				memset(targetbuf + 1, 0, sizeof(uint32_t));
-				memset(targetbuf + 5, 0, sizeof(uint16_t));
-				memcpy(targetbuf + 7, &inet_addr->sin_addr.s_addr, sizeof(uint32_t));
-				memcpy(targetbuf + 11, &dport, sizeof(uint16_t));
-
-				uint32_t size = sizeof(uint8_t) + (sizeof(uint32_t) + sizeof(uint16_t)) * 2;
-
-				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
-							gvisor_evt.exit().result(),
-							scap_const_sized_buffer{targetbuf, size});
-				if (ret != SCAP_SUCCESS) {
-					return ret;
-				}
-				break;
-			}
-			case AF_INET6:
-			{
-				sockaddr_in6 *inet6_addr = (sockaddr_in6 *)addr;
-				uint16_t dport = ntohs(inet6_addr->sin6_port);
-				memcpy(targetbuf, &inet6_addr->sin6_family, sizeof(uint8_t));
-				memset(targetbuf + 1, 0, 2 * sizeof(uint64_t)); //saddr
-				memset(targetbuf + 17, 0, sizeof(uint16_t)); //sport
-				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 2 * sizeof(uint64_t));
-				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
-				uint32_t size = sizeof(uint8_t) + (2 * sizeof(uint64_t) + sizeof(uint16_t)) * 2;
-
-				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
-									gvisor_evt.exit().result(),
-									scap_const_sized_buffer{targetbuf, size});
-				if (ret != SCAP_SUCCESS) {
-					return ret;
-				}
-
-				break;
-			}
-			case AF_UNIX:
-			{
-				sockaddr_un *unix_addr = (sockaddr_un *)addr;
-				memcpy(targetbuf, &unix_addr->sun_family, sizeof(uint8_t));
-				memset(targetbuf + 1, 0, sizeof(uint64_t)); // TODO: understand how to fill this 
-				memset(targetbuf + 1 + 8, 0, sizeof(uint64_t));
-				memcpy(targetbuf + 1 + 8 + 8, &unix_addr->sun_path, 108);
-				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
-				uint32_t size = sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint64_t) + UNIX_PATH_MAX;
-
-				ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
-										gvisor_evt.exit().result(),
-										scap_const_sized_buffer{targetbuf, size});
-				if (ret != SCAP_SUCCESS) {
-					return ret;
-				}
-				break;
-			}
-			default:
-				return SCAP_TIMEOUT;
-		}
-	}
-	else
-	{
-		evt_type = PPME_SOCKET_CONNECT_E;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 1, gvisor_evt.fd());
-		if (ret != SCAP_SUCCESS) {
-			return ret;
-		}
-	}
-
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
-	fill_common(evt, gvisor_evt);
-
-	return SCAP_SUCCESS;
-}
-
 
 #endif
 
@@ -587,6 +488,93 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 
 }
 */
+
+struct parse_result parse_connect(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
+{
+	struct parse_result ret = {0};
+	char scap_err[SCAP_LASTERR_SIZE];
+	gvisor::syscall::Connect gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
+		return ret;
+	}
+
+	if(gvisor_evt.has_exit())
+	{
+		char targetbuf[256]; // TODO: allocate dynamically with proper length?
+		uint32_t size = 0;
+
+		sockaddr *addr = (sockaddr *)gvisor_evt.address().data();
+
+		// TODO: family to scap, source side of the connection
+		switch(addr->sa_family)
+		{
+			case AF_INET: 
+			{
+				sockaddr_in *inet_addr = (sockaddr_in *)addr;
+				uint16_t dport = ntohs(inet_addr->sin_port);
+				memcpy(targetbuf, &inet_addr->sin_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, sizeof(uint32_t));
+				memset(targetbuf + 5, 0, sizeof(uint16_t));
+				memcpy(targetbuf + 7, &inet_addr->sin_addr.s_addr, sizeof(uint32_t));
+				memcpy(targetbuf + 11, &dport, sizeof(uint16_t));
+
+				size = sizeof(uint8_t) + (sizeof(uint32_t) + sizeof(uint16_t)) * 2;
+				break;
+			}
+			case AF_INET6:
+			{
+				sockaddr_in6 *inet6_addr = (sockaddr_in6 *)addr;
+				uint16_t dport = ntohs(inet6_addr->sin6_port);
+				memcpy(targetbuf, &inet6_addr->sin6_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, 2 * sizeof(uint64_t)); //saddr
+				memset(targetbuf + 17, 0, sizeof(uint16_t)); //sport
+				memcpy(targetbuf + 19, &inet6_addr->sin6_addr, 2 * sizeof(uint64_t));
+				memcpy(targetbuf + 35, &dport, sizeof(uint16_t));
+				size = sizeof(uint8_t) + (2 * sizeof(uint64_t) + sizeof(uint16_t)) * 2;
+				break;
+			}
+			case AF_UNIX:
+			{
+				sockaddr_un *unix_addr = (sockaddr_un *)addr;
+				memcpy(targetbuf, &unix_addr->sun_family, sizeof(uint8_t));
+				memset(targetbuf + 1, 0, sizeof(uint64_t)); // TODO: understand how to fill this 
+				memset(targetbuf + 1 + 8, 0, sizeof(uint64_t));
+				memcpy(targetbuf + 1 + 8 + 8, &unix_addr->sun_path, 108);
+				memset(targetbuf + 1 + 8 + 8 + UNIX_PATH_MAX - 1, 0, sizeof(uint8_t));
+				size = sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint64_t) + UNIX_PATH_MAX;
+				break;
+			}
+			default:
+			ret.status = SCAP_TIMEOUT;
+			return ret;
+		}
+
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SOCKET_CONNECT_X, 2,
+								gvisor_evt.exit().result(),
+								scap_const_sized_buffer{targetbuf, size});
+		if (ret.status != SCAP_SUCCESS) {
+			ret.error = scap_err;
+			return ret;
+		}
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SOCKET_CONNECT_E, 1, gvisor_evt.fd());
+		if (ret.status != SCAP_SUCCESS) {
+			ret.error = scap_err;
+			return ret;
+		}
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
+	fill_common(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
 
 struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
 {
@@ -687,7 +675,7 @@ struct parse_result parse_open(const google::protobuf::Any &any, scap_sized_buff
 std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	// {"gvisor.syscall.Read", parse_read},
-	// {"gvisor.syscall.Connect", parse_connect},
+	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
