@@ -410,7 +410,7 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 							  gvisor_evt.created_thread_id(),
 							  gvisor_evt.created_thread_group_id());
 
-	if (ret.status != SCAP_FAILURE) {
+	if (ret.status != SCAP_SUCCESS) {
 		ret.error = scap_err;
 		return ret;
 	}
@@ -647,13 +647,14 @@ int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, 
 
 struct parse_result parse_open(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
 {
-	parse_result ret;
+	parse_result ret = {0};
 	char scap_err[SCAP_LASTERR_SIZE];
 	gvisor::syscall::Open gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
+		ret.status = SCAP_FAILURE;
 		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
-		return SCAP_FAILURE;
+		return ret;
 	}
 
 	if(gvisor_evt.has_exit())
