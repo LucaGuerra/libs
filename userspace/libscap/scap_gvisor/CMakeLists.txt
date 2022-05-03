@@ -15,16 +15,15 @@ add_library(scap_gvisor STATIC
 add_dependencies(scap_gvisor protobuf)
 target_link_libraries(scap_gvisor ${PROTOBUF_LIB} scap)
 
-set(GVISOR_COMMIT "3f009bf04bad27c64319a902042a64257a9a16d7")
+set(GVISOR_COMMIT "f2b6fbb47e6c2b5b6435741d7e3e122c9a2f8346")
 
 file(DOWNLOAD
     https://raw.githubusercontent.com/google/gvisor/${GVISOR_COMMIT}/pkg/sentry/seccheck/points/syscall.proto
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.proto
 )
 
-# NOTE that this one is from my local repo!
 file(DOWNLOAD
-    https://raw.githubusercontent.com/LucaGuerra/gvisor/a4b3593a417e3efd9489528e6394ac003150f2a2/pkg/sentry/seccheck/points/common.proto
+    https://raw.githubusercontent.com/LucaGuerra/gvisor/${GVISOR_COMMIT}/pkg/sentry/seccheck/points/common.proto
     ${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.proto
 )
 
