@@ -58,7 +58,14 @@ TEST(gvisor_parsers, parse_execve_e)
 
     parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_EQ("", res.error);
-    EXPECT_EQ(res.status, SCAP_SUCCESS);   
+    EXPECT_EQ(res.status, SCAP_SUCCESS);
+
+    EXPECT_EQ(res.scap_events.size(), 1);
+
+    struct scap_sized_buffer decoded_params[PPM_MAX_EVENT_PARAMS];
+    uint32_t n = scap_event_decode_params(res.scap_events[0], decoded_params);
+    EXPECT_EQ(n, 1);
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[0].buf), "/usr/bin/ls");
 }
 
 TEST(gvisor_parsers, parse_execve_x)
