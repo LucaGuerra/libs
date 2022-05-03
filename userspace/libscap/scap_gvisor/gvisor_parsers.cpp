@@ -417,54 +417,45 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 	return ret;
 }
 
-// XXX TODO -- these can be refactored later
-
-#if 0
-
-int32_t parse_read(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
+struct parse_result parse_read(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
 {
-	uint32_t ret;
+	struct parse_result ret = {0};
+	char scap_err[SCAP_LASTERR_SIZE];
 	gvisor::syscall::Read gvisor_evt;
 	if(!any.UnpackTo(&gvisor_evt))
 	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking read protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
+		return ret;
 	}
-
-	ppm_event_type evt_type;
 
 	if(!gvisor_evt.has_exit())
 	{
-		evt_type = PPME_SYSCALL_READ_E;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 2,
+		// ret.status = scap_event_encode_params(event_buf, &event_size, scap_err,
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_READ_E, 2,
 							gvisor_evt.fd(),
 							gvisor_evt.count());
-		if(ret != SCAP_SUCCESS) {
-			return ret;
-		}
 	}
 	else
 	{
-		evt_type = PPME_SYSCALL_READ_X;
-		ret = scap_event_encode_params(event_buf, lasterr, evt_type, 3,
+		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_READ_X, 3,
 								gvisor_evt.exit().result(),
 								scap_const_sized_buffer{gvisor_evt.data().data(),
 								gvisor_evt.data().size()});
-		if(ret != SCAP_SUCCESS) {
-			return ret;
-		}
 	}
 
-	scap_evt *evt = static_cast<scap_evt*>(event_buf->buf);
-
+	if (ret.status != SCAP_SUCCESS) {
+		ret.error = scap_err;
+		return ret;
+	}
+	
+	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
 	fill_common(evt, gvisor_evt);
 
-	return SCAP_SUCCESS;
+	ret.scap_events.push_back(evt);
+
+	return ret;
 }
-
-
-#endif
-
 
 /*
 int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
@@ -668,7 +659,7 @@ struct parse_result parse_open(const google::protobuf::Any &any, scap_sized_buff
 
 std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
-	// {"gvisor.syscall.Read", parse_read},
+	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
