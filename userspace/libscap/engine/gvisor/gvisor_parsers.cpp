@@ -457,22 +457,6 @@ struct parse_result parse_read(const google::protobuf::Any &any, scap_sized_buff
 	return ret;
 }
 
-/*
-int32_t parse_sentry_task_exit(const google::protobuf::Any &any, char *lasterr, scap_sized_buffer *event_buf)
-{
-	uint32_t ret;
-	gvisor::sentry::TaskExit gvisor_evt;
-	if(!any.UnpackTo(&gvisor_evt))
-	{
-		snprintf(lasterr, SCAP_LASTERR_SIZE, "Error unpacking connect protobuf message: %s", any.DebugString().c_str());
-		return SCAP_FAILURE;
-	}
-
-	return SCAP_TIMEOUT;
-
-}
-*/
-
 struct parse_result parse_connect(const google::protobuf::Any &any, scap_sized_buffer scap_buf)
 {
 	struct parse_result ret = {0};
