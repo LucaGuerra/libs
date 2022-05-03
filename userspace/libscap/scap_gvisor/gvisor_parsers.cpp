@@ -684,7 +684,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	if(message_size > maxEventSize)
 	{
 		ret.error = std::string("Invalid header size ") + std::to_string(message_size);
-		ret.status = SCAP_FAILURE;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
@@ -694,7 +694,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	if(payload_size <= 0)
 	{
 		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(message_size);
-		ret.status = SCAP_FAILURE;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
@@ -704,7 +704,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	if(proto_size < payload_size)
 	{
 		ret.error = std::string("Message was truncated, size: ") + std::to_string(proto_size) + ", expected: " + std::to_string(payload_size);
-		ret.status = SCAP_FAILURE;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
@@ -712,7 +712,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	if(!any.ParseFromArray(proto, proto_size))
 	{
 		ret.error = std::string("Invalid protobuf message");
-		ret.status = SCAP_FAILURE;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
@@ -720,7 +720,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	if(url.size() <= prefixLen)
 	{
 		ret.error = std::string("Invalid URL ") + url;
-		ret.status = SCAP_FAILURE;
+		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 

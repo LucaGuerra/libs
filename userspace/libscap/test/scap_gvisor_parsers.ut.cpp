@@ -133,5 +133,5 @@ TEST(gvisor_parsers, big_message_size)
 
     parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_NE(res.error.find("Invalid header size"), std::string::npos);
-    EXPECT_EQ(res.status, SCAP_FAILURE);
+    EXPECT_EQ(res.status, SCAP_TIMEOUT);
 }
