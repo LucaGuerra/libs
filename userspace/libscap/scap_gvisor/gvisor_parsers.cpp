@@ -27,8 +27,8 @@
 
 typedef std::function<parse_result(const google::protobuf::Any &any, scap_sized_buffer scap_buf)> Callback;
 
-constexpr size_t prefixLen = sizeof("type.googleapis.com/") - 1;
-constexpr size_t maxEventSize = 300 * 1024;
+constexpr size_t prefix_len = sizeof("type.googleapis.com/") - 1;
+constexpr size_t max_event_size = 300 * 1024;
 
 
 // In gVisor there's no concept of tid and tgid but only vtid and vtgid.
@@ -681,7 +681,7 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	struct parse_result ret = {0};
 	const char *buf = static_cast<const char*>(gvisor_buf.buf);
 	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
-	if(message_size > maxEventSize)
+	if(message_size > max_event_size)
 	{
 		ret.error = std::string("Invalid header size ") + std::to_string(message_size);
 		ret.status = SCAP_TIMEOUT;
@@ -717,14 +717,14 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 	}
 
 	auto url = any.type_url();
-	if(url.size() <= prefixLen)
+	if(url.size() <= prefix_len)
 	{
 		ret.error = std::string("Invalid URL ") + url;
 		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
-	const std::string name = url.substr(prefixLen);
+	const std::string name = url.substr(prefix_len);
 
 	Callback cb = dispatchers[name];
 	if(cb == nullptr)
