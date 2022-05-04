@@ -23,12 +23,12 @@ limitations under the License.
 #include "pkg/sentry/seccheck/points/syscall.pb.h"
 #include "pkg/sentry/seccheck/points/sentry.pb.h"
 #include "pkg/sentry/seccheck/points/container.pb.h"
-#include "gvisor.h"
+#include "engine/gvisor/gvisor.h"
 
 uint32_t prepare_message(char *message, uint32_t message_size, google::protobuf::Any &any)
 {
     uint32_t proto_size = static_cast<uint32_t>(any.ByteSizeLong()); 
-    uint16_t header_size = sizeof(header);
+    uint16_t header_size = sizeof(scap_gvisor::header);
     uint32_t total_size = sizeof(uint32_t) + header_size + proto_size;
     uint32_t dropped_count = 0;
     memcpy(message, &total_size, sizeof(uint32_t));
@@ -56,7 +56,7 @@ TEST(gvisor_parsers, parse_execve_e)
     scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
     scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
 
-    parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
+    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_EQ("", res.error);
     EXPECT_EQ(res.status, SCAP_SUCCESS);
 
@@ -91,7 +91,7 @@ TEST(gvisor_parsers, parse_execve_x)
     scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
     scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
 
-    parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
+    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_EQ("", res.error);
     EXPECT_EQ(res.status, SCAP_SUCCESS);
 }
@@ -114,7 +114,7 @@ TEST(gvisor_parsers, unhandled_syscall)
     scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
     scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
 
-    parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
+    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_NE(res.error.find("Unhandled syscall"), std::string::npos);
     EXPECT_EQ(res.status, SCAP_TIMEOUT);
 }
@@ -138,7 +138,7 @@ TEST(gvisor_parsers, big_message_size)
     scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
     scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
 
-    parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
+    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_NE(res.error.find("Invalid header size"), std::string::npos);
     EXPECT_EQ(res.status, SCAP_TIMEOUT);
 }

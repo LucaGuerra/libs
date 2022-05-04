@@ -2,18 +2,18 @@ include(protobuf)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_library(scap_gvisor STATIC
+add_library(scap_engine_gvisor STATIC
     pkg/sentry/seccheck/points/syscall.pb.cc
     pkg/sentry/seccheck/points/common.pb.cc
     pkg/sentry/seccheck/points/container.pb.cc
     pkg/sentry/seccheck/points/sentry.pb.cc
-    gvisor_parsers.cpp
+    parsers.cpp
     gvisor.cpp
-    gvisor_vtable.cpp
+    scap_gvisor.cpp
 )
 
-add_dependencies(scap_gvisor protobuf)
-target_link_libraries(scap_gvisor ${PROTOBUF_LIB} scap)
+add_dependencies(scap_engine_gvisor protobuf)
+target_link_libraries(scap_engine_gvisor ${PROTOBUF_LIB} scap)
 
 set(GVISOR_COMMIT "3f009bf04bad27c64319a902042a64257a9a16d7")
 

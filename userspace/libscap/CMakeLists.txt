@@ -100,12 +100,9 @@ if(CYGWIN OR WIN32)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory(scap_gvisor)
 
 add_library(scap STATIC
 	${targetfiles})
-
-target_link_libraries(scap scap_gvisor)
 
 if(USE_BUNDLED_ZLIB AND NOT MINIMAL_BUILD)
 	add_dependencies(scap zlib)
@@ -145,6 +142,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
 	include(FindMakedev)
 endif()
+
+add_definitions(-DHAS_ENGINE_GVISOR)
+add_subdirectory(engine/gvisor)
+target_link_libraries(scap scap_engine_gvisor)
+
 
 option(CREATE_TEST_TARGETS "Enable make-targets for unit testing" ON)
 
