@@ -3,7 +3,10 @@
       "name": "Default",
       "points": [
         {
-          "name": "container/start"
+          "name": "container/start", 
+          "context_fields": [
+            "cwd"
+          ]
         },
         {
           "name": "syscall/openat/enter",
@@ -85,6 +88,7 @@
             "container_id",
             "thread_id",
             "task_start_time",
+            "cwd",
             "time"
           ]
         },

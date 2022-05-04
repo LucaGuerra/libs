@@ -97,6 +97,8 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 
 	auto& context_data = gvisor_evt.context_data();
 
+	std::string cwd = context_data.cwd();
+
 	uint64_t tid_field = generate_tid_field(1, container_id);
 	uint64_t tgid_field = generate_tid_field(1, container_id);
 
@@ -198,7 +200,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 						tid_field, // tid
 						tgid_field, // pid
 						-1, // ptid is only needed if we don't have the corresponding clone event
-						"", // cwd
+						cwd.c_str(), // cwd
 						75000, // fdlimit ?
 						0, // pgft_maj
 						0, // pgft_min
@@ -271,6 +273,8 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 
 		auto& context_data = gvisor_evt.context_data();
 
+		std::string cwd = context_data.cwd();
+
 		std::string cgroups = "gvisor_container_id=/";
 		cgroups += context_data.container_id();
 
@@ -281,7 +285,7 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 							generate_tid_field(context_data.thread_id(), context_data.container_id()), // tid
 							generate_tid_field(context_data.thread_group_id(), context_data.container_id()), // pid
 							-1, // ptid is only needed if we don't have the corresponding clone event
-							"", // cwd
+							cwd.c_str(), // cwd
 							75000, // fdlimit ?
 							0, // pgft_maj
 							0, // pgft_min
