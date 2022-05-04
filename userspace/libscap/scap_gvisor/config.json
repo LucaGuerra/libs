@@ -180,7 +180,7 @@
           ]
         },
         {
-          "name": "syscall/sysno/41/enter",
+          "name": "syscall/socket/enter",
           "context_fields": [
             "credentials",
             "container_id",
@@ -190,7 +190,7 @@
           ]
         },
         {
-          "name": "syscall/sysno/41/exit",
+          "name": "syscall/socket/exit",
           "context_fields": [
             "credentials",
             "container_id",

@@ -560,10 +560,17 @@ struct parse_result parse_connect(const google::protobuf::Any &any, scap_sized_b
 	return ret;
 }
 
-struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+struct parse_result parse_socket(const google::protobuf::Any &any, scap_sized_buffer event_buf)
 {
 	struct parse_result ret = {0};
 	char scap_err[SCAP_LASTERR_SIZE];
+	gvisor::syscall::Socket gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
+		return ret;
+	}
 
 	if(gvisor_evt.has_exit())
 	{
@@ -571,7 +578,7 @@ struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, sca
 	}
 	else
 	{
-		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SOCKET_SOCKET_E, 3, gvisor_evt.arg1(), gvisor_evt.arg2(), gvisor_evt.arg3());
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SOCKET_SOCKET_E, 3, socket_family_to_scap(gvisor_evt.domain()), gvisor_evt.type(), gvisor_evt.protocol());
 	}
 
 	if(ret.status != SCAP_SUCCESS)
@@ -600,8 +607,6 @@ struct parse_result parse_generic_syscall(const google::protobuf::Any &any, scap
 
 	switch(gvisor_evt.sysno())
 	{
-		case 41:
-			return parse_socket(gvisor_evt, scap_buf);
 		case 56:
 			return parse_clone(gvisor_evt, scap_buf, true);
 		case 57:
@@ -661,6 +666,7 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
+	{"gvisor.syscall.Socket", parse_socket},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
