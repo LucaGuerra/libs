@@ -15,7 +15,10 @@
 #
 
 include(protobuf)
-include_directories("..", "../scap_gvisor", ${CMAKE_CURRENT_BINARY_DIR}/../scap_gvisor/)
+include_directories(..)
+include_directories(../engine/gvisor)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../engine/gvisor)
 
 set(LIBSCAP_UNIT_TESTS_SOURCES
     # scap_event.ut.cpp
