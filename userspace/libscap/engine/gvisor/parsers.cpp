@@ -62,11 +62,11 @@ uint64_t generate_tid_field(uint64_t tid, std::string container_id_hex)
 }
 
 template<class T>
-void fill_common(scap_evt *evt, T& gvisor_evt)
+void fill_context_data(scap_evt *evt, T& gvisor_evt)
 {
-	auto& common = gvisor_evt.common();
-	evt->ts = common.time_ns();
-	evt->tid = generate_tid_field(common.thread_id(), common.container_id());
+	auto& context_data = gvisor_evt.context_data();
+	evt->ts = context_data.time_ns();
+	evt->tid = generate_tid_field(context_data.thread_id(), context_data.container_id());
 }
 
 uint64_t get_time_ns()
@@ -114,7 +114,9 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 	std::string cgroups = "gvisor_container_id=/";
 	cgroups += container_id;
 
-	auto& common = gvisor_evt.common();
+	auto& context_data = gvisor_evt.context_data();
+
+	std::string cwd = context_data.cwd();
 
 	uint64_t tid_field = generate_tid_field(1, container_id);
 	uint64_t tgid_field = generate_tid_field(1, container_id);
@@ -160,8 +162,8 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 						gvisor_evt.args(0).c_str(), // comm
 						scap_const_sized_buffer{cgroups.c_str(), cgroups.length() + 1}, // cgroups
 						0, // clone_flags
-						common.credentials().real_uid(), // uid
-						common.credentials().real_gid(), // gid
+						context_data.credentials().real_uid(), // uid
+						context_data.credentials().real_gid(), // gid
 						1, // vtid
 						1); // vpid
 
@@ -217,7 +219,7 @@ parse_result parse_container_start(const google::protobuf::Any &any, scap_sized_
 						tid_field, // tid
 						tgid_field, // pid
 						-1, // ptid is only needed if we don't have the corresponding clone event
-						"", // cwd
+						cwd.c_str(), // cwd
 						75000, // fdlimit ?
 						0, // pgft_maj
 						0, // pgft_min
@@ -288,19 +290,21 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 		pathname = gvisor_evt.pathname();
 		comm = pathname.substr(pathname.find_last_of("/") + 1);
 
-		auto& common = gvisor_evt.common();
+		auto& context_data = gvisor_evt.context_data();
+
+		std::string cwd = context_data.cwd();
 
 		std::string cgroups = "gvisor_container_id=/";
-		cgroups += common.container_id();
+		cgroups += context_data.container_id();
 
 		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_EXECVE_19_X, 20,
 							gvisor_evt.exit().result(), // res
 							gvisor_evt.pathname().c_str(), // exe
 							scap_const_sized_buffer{args.data(), args.size()}, // args
-							generate_tid_field(common.thread_id(), common.container_id()), // tid
-							generate_tid_field(common.thread_group_id(), common.container_id()), // pid
+							generate_tid_field(context_data.thread_id(), context_data.container_id()), // tid
+							generate_tid_field(context_data.thread_group_id(), context_data.container_id()), // pid
 							-1, // ptid is only needed if we don't have the corresponding clone event
-							"", // cwd
+							cwd.c_str(), // cwd
 							75000, // fdlimit ?
 							0, // pgft_maj
 							0, // pgft_min
@@ -326,7 +330,7 @@ struct parse_result parse_execve(const google::protobuf::Any &any, scap_sized_bu
 	}
 
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 	ret.scap_events.push_back(evt);
 
 	return ret;
@@ -340,7 +344,7 @@ struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap
 	char scap_err[SCAP_LASTERR_SIZE];
 	scap_err[0] = '\0';
 
-	auto& common = gvisor_evt.common();
+	auto& context_data = gvisor_evt.context_data();
 
 	if(gvisor_evt.has_exit())
 	{
@@ -348,8 +352,8 @@ struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap
 							  gvisor_evt.exit().result(), /* res */
 							  "", /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */
-							  generate_tid_field(common.thread_id(), common.container_id()), // tid
-							  generate_tid_field(common.thread_group_id(), common.container_id()), // pid
+							  generate_tid_field(context_data.thread_id(), context_data.container_id()), // tid
+							  generate_tid_field(context_data.thread_group_id(), context_data.container_id()), // pid
 							  0, // ptid  -- we could get it from gvisor
 							  "", /* cwd */
 							  16,
@@ -363,8 +367,8 @@ struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap
 							  is_fork ? PPM_CL_CLONE_CHILD_CLEARTID|PPM_CL_CLONE_CHILD_SETTID : clone_flags_to_scap(gvisor_evt.arg1()),
 							  0,
 							  0,
-							  gvisor_evt.common().thread_id(),
-							  gvisor_evt.common().thread_group_id());
+							  gvisor_evt.context_data().thread_id(),
+							  gvisor_evt.context_data().thread_group_id());
 	} else
 	{
 		ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_E, 0);
@@ -376,7 +380,7 @@ struct parse_result parse_clone(const gvisor::syscall::Syscall &gvisor_evt, scap
 	}
 
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 	ret.scap_events.push_back(evt);
 
 	return ret;
@@ -398,23 +402,23 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 		return ret;
 	}
 
-	auto& common = gvisor_evt.common();
+	auto& context_data = gvisor_evt.context_data();
 
 	std::string cgroups = "gvisor_container_id=/";
-	cgroups += common.container_id();
+	cgroups += context_data.container_id();
 
-	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), common.container_id());
+	uint64_t tid_field = generate_tid_field(gvisor_evt.created_thread_id(), context_data.container_id());
 
 	ret.status = scap_event_encode_params(scap_buf, &ret.size, scap_err, PPME_SYSCALL_CLONE_20_X, 20,
 							  0, /* res */
-							  common.process_name().c_str(), /* exe */
+							  context_data.process_name().c_str(), /* exe */
 							  scap_const_sized_buffer{"", 0}, /* args */
 							  tid_field, // /* tid */
-							  generate_tid_field(gvisor_evt.created_thread_group_id(), common.container_id()), /* pid */
-							  generate_tid_field(common.thread_id(), common.container_id()), /* ptid */
+							  generate_tid_field(gvisor_evt.created_thread_group_id(), context_data.container_id()), /* pid */
+							  generate_tid_field(context_data.thread_id(), context_data.container_id()), /* ptid */
 							  "", /* cwd */
 							  16, 0, 0, 0, 0, 0,
-							  common.process_name().c_str(), /* comm */
+							  context_data.process_name().c_str(), /* comm */
 							  scap_const_sized_buffer{cgroups.c_str(), cgroups.size() + 1},
 							  0,
 							  0,
@@ -428,7 +432,7 @@ struct parse_result parse_sentry_clone(const google::protobuf::Any &any, scap_si
 	}
 	
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	evt->ts = common.time_ns();
+	evt->ts = context_data.time_ns();
 	evt->tid = tid_field;
 
 	ret.scap_events.push_back(evt);
@@ -469,7 +473,7 @@ struct parse_result parse_read(const google::protobuf::Any &any, scap_sized_buff
 	}
 	
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 
 	ret.scap_events.push_back(evt);
 
@@ -557,16 +561,23 @@ struct parse_result parse_connect(const google::protobuf::Any &any, scap_sized_b
 	}
 
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 	ret.scap_events.push_back(evt);
 
 	return ret;
 }
 
-struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+struct parse_result parse_socket(const google::protobuf::Any &any, scap_sized_buffer event_buf)
 {
 	struct parse_result ret = {0};
 	char scap_err[SCAP_LASTERR_SIZE];
+	gvisor::syscall::Socket gvisor_evt;
+	if(!any.UnpackTo(&gvisor_evt))
+	{
+		ret.status = SCAP_FAILURE;
+		ret.error = std::string("Error unpacking open protobuf message: ") + any.DebugString();
+		return ret;
+	}
 
 	if(gvisor_evt.has_exit())
 	{
@@ -574,7 +585,7 @@ struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, sca
 	}
 	else
 	{
-		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SOCKET_SOCKET_E, 3, gvisor_evt.arg1(), gvisor_evt.arg2(), gvisor_evt.arg3());
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SOCKET_SOCKET_E, 3, socket_family_to_scap(gvisor_evt.domain()), gvisor_evt.type(), gvisor_evt.protocol());
 	}
 
 	if(ret.status != SCAP_SUCCESS)
@@ -584,7 +595,7 @@ struct parse_result parse_socket(const gvisor::syscall::Syscall &gvisor_evt, sca
 	}
 
 	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 	ret.scap_events.push_back(evt);
 
 	return ret;
@@ -603,8 +614,6 @@ struct parse_result parse_generic_syscall(const google::protobuf::Any &any, scap
 
 	switch(gvisor_evt.sysno())
 	{
-		case 41:
-			return parse_socket(gvisor_evt, scap_buf);
 		case 56:
 			return parse_clone(gvisor_evt, scap_buf, true);
 		case 57:
@@ -654,7 +663,7 @@ struct parse_result parse_open(const google::protobuf::Any &any, scap_sized_buff
 	}
 
 	scap_evt *evt = static_cast<scap_evt*>(scap_buf.buf);
-	fill_common(evt, gvisor_evt);
+	fill_context_data(evt, gvisor_evt);
 	ret.scap_events.push_back(evt);
 
 	return ret;
@@ -664,6 +673,7 @@ std::map<std::string, Callback> dispatchers = {
 	{"gvisor.syscall.Syscall", parse_generic_syscall},
 	{"gvisor.syscall.Read", parse_read},
 	{"gvisor.syscall.Connect", parse_connect},
+	{"gvisor.syscall.Socket", parse_socket},
 	{"gvisor.syscall.Open", parse_open},
 	{"gvisor.syscall.Execve", parse_execve},
 	{"gvisor.sentry.CloneInfo", parse_sentry_clone},
@@ -674,27 +684,21 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 {
 	struct parse_result ret = {0};
 	const char *buf = static_cast<const char*>(gvisor_buf.buf);
-	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
-	if(message_size > max_event_size)
-	{
-		ret.error = std::string("Invalid header size ") + std::to_string(message_size);
-		ret.status = SCAP_TIMEOUT;
-		return ret;
-	}
 
 	// XXX this will be changed with protocol update
-	const header *hdr = reinterpret_cast<const header *>(&buf[4]);
-	size_t payload_size = message_size - 4 - hdr->header_size;
+	const header *hdr = reinterpret_cast<const header *>(buf);
+	size_t payload_size = gvisor_buf.size - hdr->header_size;
 	if(payload_size <= 0)
 	{
-		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(message_size);
+		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(gvisor_buf.size);
 		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
 	// TODO this will change with a protocol update
-	const char *proto = &buf[4 + hdr->header_size];
-	size_t proto_size = gvisor_buf.size - 4 - hdr->header_size;
+	const char *proto = &buf[hdr->header_size];
+	size_t proto_size = gvisor_buf.size - hdr->header_size;
+	// TODO: does this make sense? 
 	if(proto_size < payload_size)
 	{
 		ret.error = std::string("Message was truncated, size: ") + std::to_string(proto_size) + ", expected: " + std::to_string(payload_size);

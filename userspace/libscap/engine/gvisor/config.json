@@ -1,9 +1,12 @@
 {
-    "session": {
+    "trace_session": {
       "name": "Default",
       "points": [
         {
-          "name": "container/start"
+          "name": "container/start", 
+          "context_fields": [
+            "cwd"
+          ]
         },
         {
           "name": "syscall/openat/enter",
@@ -85,6 +88,7 @@
             "container_id",
             "thread_id",
             "task_start_time",
+            "cwd",
             "time"
           ]
         },
@@ -180,7 +184,7 @@
           ]
         },
         {
-          "name": "syscall/sysno/41/enter",
+          "name": "syscall/socket/enter",
           "context_fields": [
             "credentials",
             "container_id",
@@ -190,7 +194,7 @@
           ]
         },
         {
-          "name": "syscall/sysno/41/exit",
+          "name": "syscall/socket/exit",
           "context_fields": [
             "credentials",
             "container_id",

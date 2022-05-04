@@ -29,12 +29,11 @@ uint32_t prepare_message(char *message, uint32_t message_size, google::protobuf:
 {
     uint32_t proto_size = static_cast<uint32_t>(any.ByteSizeLong()); 
     uint16_t header_size = sizeof(scap_gvisor::header);
-    uint32_t total_size = sizeof(uint32_t) + header_size + proto_size;
+    uint32_t total_size = header_size + proto_size;
     uint32_t dropped_count = 0;
-    memcpy(message, &total_size, sizeof(uint32_t));
-    memcpy(&message[sizeof(uint32_t)], &header_size, sizeof(uint16_t));
-    memcpy(&message[sizeof(uint32_t) + sizeof(uint16_t)], &dropped_count, sizeof(uint32_t));
-    any.SerializeToArray(&message[sizeof(uint32_t) + header_size], message_size - (sizeof(uint32_t) + header_size));
+    memcpy(message, &header_size, sizeof(uint16_t));
+    memcpy(&message[sizeof(uint32_t)], &dropped_count, sizeof(uint32_t));
+    any.SerializeToArray(&message[header_size], message_size - header_size);
     return total_size;
 }
 
@@ -45,8 +44,8 @@ TEST(gvisor_parsers, parse_execve_e)
 
     gvisor::syscall::Execve gvisor_evt;
     gvisor_evt.set_pathname("/usr/bin/ls");
-    gvisor::common::Common *common = gvisor_evt.mutable_common();
-    common->set_container_id("1234");
+    auto *context_data = gvisor_evt.mutable_context_data();
+    context_data->set_container_id("1234");
 
     google::protobuf::Any any;
     any.PackFrom(gvisor_evt);
@@ -78,8 +77,9 @@ TEST(gvisor_parsers, parse_execve_x)
     gvisor_evt.mutable_argv()->Add("ls");
     gvisor_evt.mutable_argv()->Add("a");
     gvisor_evt.mutable_argv()->Add("b");
-    gvisor::common::Common *common = gvisor_evt.mutable_common();
-    common->set_container_id("1234");
+    auto *context_data = gvisor_evt.mutable_context_data();
+    context_data->set_container_id("1234");
+    context_data->set_cwd("/root");
     gvisor::syscall::Exit *exit = gvisor_evt.mutable_exit();
     exit->set_result(0);
 
@@ -94,6 +94,43 @@ TEST(gvisor_parsers, parse_execve_x)
     scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_EQ("", res.error);
     EXPECT_EQ(res.status, SCAP_SUCCESS);
+
+    EXPECT_EQ(res.scap_events.size(), 1);
+
+    struct scap_sized_buffer decoded_params[PPM_MAX_EVENT_PARAMS];
+    uint32_t n = scap_event_decode_params(res.scap_events[0], decoded_params);
+    EXPECT_EQ(n, 20);
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[1].buf), "/usr/bin/ls"); // exe
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[6].buf), "/root"); // cwd
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[13].buf), "ls"); // comm
+}
+
+TEST(gvisor_parsers, parse_container_start)
+{
+    char message[1024];
+    char buffer[1024];
+
+    gvisor::container::Start gvisor_evt;
+    gvisor_evt.set_id("deadbeef");
+    gvisor_evt.mutable_args()->Add("ls");
+    auto *context_data = gvisor_evt.mutable_context_data();
+    context_data->set_cwd("/root");
+
+    google::protobuf::Any any;
+    any.PackFrom(gvisor_evt);
+
+    uint32_t total_size = prepare_message(message, 1024, any);
+
+    scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
+    scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
+
+    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
+
+    EXPECT_EQ(res.scap_events.size(), 4);
+    EXPECT_EQ(res.scap_events[0]->type, PPME_SYSCALL_CLONE_20_E);
+    EXPECT_EQ(res.scap_events[1]->type, PPME_SYSCALL_CLONE_20_X);
+    EXPECT_EQ(res.scap_events[2]->type, PPME_SYSCALL_EXECVE_19_E);
+    EXPECT_EQ(res.scap_events[3]->type, PPME_SYSCALL_EXECVE_19_X);
 }
 
 TEST(gvisor_parsers, unhandled_syscall)
@@ -103,8 +140,8 @@ TEST(gvisor_parsers, unhandled_syscall)
 
     gvisor::syscall::Syscall gvisor_evt;
     gvisor_evt.set_sysno(999);
-    gvisor::common::Common *common = gvisor_evt.mutable_common();
-    common->set_container_id("1234");
+    auto *context_data = gvisor_evt.mutable_context_data();
+    context_data->set_container_id("1234");
 
     google::protobuf::Any any;
     any.PackFrom(gvisor_evt);
@@ -116,29 +153,5 @@ TEST(gvisor_parsers, unhandled_syscall)
 
     scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_NE(res.error.find("Unhandled syscall"), std::string::npos);
-    EXPECT_EQ(res.status, SCAP_TIMEOUT);
-}
-
-TEST(gvisor_parsers, big_message_size)
-{
-    char message[1024];
-    char buffer[1024];
-
-    gvisor::syscall::Syscall gvisor_evt;
-    gvisor_evt.set_sysno(999);
-
-    google::protobuf::Any any;
-    any.PackFrom(gvisor_evt);
-
-    uint32_t total_size = prepare_message(message, 1024, any);
-    // modify message size
-    uint32_t new_size = 300 * 1024 + 1;
-    memcpy(message, &new_size, sizeof(uint32_t));
-
-    scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
-    scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
-
-    scap_gvisor::parse_result res = scap_gvisor::parsers::parse_gvisor_proto(gvisor_msg, scap_buf);
-    EXPECT_NE(res.error.find("Invalid header size"), std::string::npos);
     EXPECT_EQ(res.status, SCAP_TIMEOUT);
 }

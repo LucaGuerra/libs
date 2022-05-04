@@ -147,7 +147,6 @@ add_definitions(-DHAS_ENGINE_GVISOR)
 add_subdirectory(engine/gvisor)
 target_link_libraries(scap scap_engine_gvisor)
 
-
 option(CREATE_TEST_TARGETS "Enable make-targets for unit testing" ON)
 
 if(CREATE_TEST_TARGETS AND NOT WIN32)
