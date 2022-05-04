@@ -671,27 +671,21 @@ struct parse_result parse_gvisor_proto(struct scap_const_sized_buffer gvisor_buf
 {
 	struct parse_result ret = {0};
 	const char *buf = static_cast<const char*>(gvisor_buf.buf);
-	uint32_t message_size = *reinterpret_cast<const uint32_t *>(buf);
-	if(message_size > max_event_size)
-	{
-		ret.error = std::string("Invalid header size ") + std::to_string(message_size);
-		ret.status = SCAP_TIMEOUT;
-		return ret;
-	}
 
 	// XXX this will be changed with protocol update
-	const header *hdr = reinterpret_cast<const header *>(&buf[4]);
-	size_t payload_size = message_size - 4 - hdr->header_size;
+	const header *hdr = reinterpret_cast<const header *>(buf);
+	size_t payload_size = gvisor_buf.size - hdr->header_size;
 	if(payload_size <= 0)
 	{
-		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(message_size);
+		ret.error = std::string("Header size (") + std::to_string(hdr->header_size) + ") is larger than message " + std::to_string(gvisor_buf.size);
 		ret.status = SCAP_TIMEOUT;
 		return ret;
 	}
 
 	// TODO this will change with a protocol update
-	const char *proto = &buf[4 + hdr->header_size];
-	size_t proto_size = gvisor_buf.size - 4 - hdr->header_size;
+	const char *proto = &buf[hdr->header_size];
+	size_t proto_size = gvisor_buf.size - hdr->header_size;
+	// TODO: does this make sense? 
 	if(proto_size < payload_size)
 	{
 		ret.error = std::string("Message was truncated, size: ") + std::to_string(proto_size) + ", expected: " + std::to_string(payload_size);
