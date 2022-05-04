@@ -79,6 +79,7 @@ TEST(gvisor_parsers, parse_execve_x)
     gvisor_evt.mutable_argv()->Add("b");
     auto *context_data = gvisor_evt.mutable_context_data();
     context_data->set_container_id("1234");
+    context_data->set_cwd("/root");
     gvisor::syscall::Exit *exit = gvisor_evt.mutable_exit();
     exit->set_result(0);
 
@@ -93,6 +94,43 @@ TEST(gvisor_parsers, parse_execve_x)
     parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
     EXPECT_EQ("", res.error);
     EXPECT_EQ(res.status, SCAP_SUCCESS);
+
+    EXPECT_EQ(res.scap_events.size(), 1);
+
+    struct scap_sized_buffer decoded_params[PPM_MAX_EVENT_PARAMS];
+    uint32_t n = scap_event_decode_params(res.scap_events[0], decoded_params);
+    EXPECT_EQ(n, 20);
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[1].buf), "/usr/bin/ls"); // exe
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[6].buf), "/root"); // cwd
+    EXPECT_STREQ(static_cast<const char*>(decoded_params[13].buf), "ls"); // comm
+}
+
+TEST(gvisor_parsers, parse_container_start)
+{
+    char message[1024];
+    char buffer[1024];
+
+    gvisor::container::Start gvisor_evt;
+    gvisor_evt.set_id("deadbeef");
+    gvisor_evt.mutable_args()->Add("ls");
+    auto *context_data = gvisor_evt.mutable_context_data();
+    context_data->set_cwd("/root");
+
+    google::protobuf::Any any;
+    any.PackFrom(gvisor_evt);
+
+    uint32_t total_size = prepare_message(message, 1024, any);
+
+    scap_const_sized_buffer gvisor_msg = {.buf = message, .size = total_size};
+    scap_sized_buffer scap_buf = {.buf = buffer, .size = 1024};
+
+    parse_result res = parse_gvisor_proto(gvisor_msg, scap_buf);
+
+    EXPECT_EQ(res.scap_events.size(), 4);
+    EXPECT_EQ(res.scap_events[0]->type, PPME_SYSCALL_CLONE_20_E);
+    EXPECT_EQ(res.scap_events[1]->type, PPME_SYSCALL_CLONE_20_X);
+    EXPECT_EQ(res.scap_events[2]->type, PPME_SYSCALL_EXECVE_19_E);
+    EXPECT_EQ(res.scap_events[3]->type, PPME_SYSCALL_EXECVE_19_X);
 }
 
 TEST(gvisor_parsers, unhandled_syscall)
