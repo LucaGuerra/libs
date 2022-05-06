@@ -34,90 +34,77 @@ namespace scap_gvisor {
 #include <sys/epoll.h>
 #include <sys/stat.h>
 
+#include "../../../common/strlcpy.h"
+
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 static SCAP_HANDLE_T *gvisor_alloc_handle(scap_t* main_handle, char *lasterr_ptr)
 {
-	printf("gvisor_alloc_handle\n");
-	return NULL;
-	/*
-	return (scap_ctx *) new scap_gvisor::engine(lasterr_ptr);
-	*/
+	return new scap_gvisor::engine(lasterr_ptr);
 }
 
 static int32_t gvisor_init(scap_t* main_handle, scap_open_args* open_args)
 {
-	printf("gvisor_init\n");
-	return SCAP_SUCCESS;
-	/*
-	const char *socket_path = (const char*)param;
-    scap_gvisor::engine *gvisor_ctx = (scap_gvisor::engine *)ctx;
-	return gvisor_ctx->open(socket_path);
-	*/
+	scap_gvisor::engine *gv = main_handle->m_engine.m_handle;
+	return gv->init(open_args->gvisor_socket);
 }
 
 static void gvisor_free_handle(struct scap_engine_handle engine)
 {
-	printf("gvisor_free_handle\n");
-	/*
-	scap_gvisor::engine *gvisor_ctx = (scap_gvisor::engine *)ctx;
-    delete gvisor_ctx;
-	*/
+	delete engine.m_handle;
 }
 
 static int32_t gvisor_start_capture(struct scap_engine_handle engine)
 {
-	printf("gvisor_start_capture\n");
-	return SCAP_SUCCESS;
-	/*
-    scap_gvisor::engine *gvisor_ctx = (scap_gvisor::engine *)ctx;
-	return gvisor_ctx->start_capture();
-	*/
+	return engine.m_handle->start_capture();
 }
 
 static int32_t gvisor_close(struct scap_engine_handle engine)
 {
-	printf("gvisor_close\n");
-	// should we unlink the socket?
-
-	return SCAP_SUCCESS;
+	return engine.m_handle->close();
 }
 
 static int32_t gvisor_stop_capture(struct scap_engine_handle engine)
 {
-	printf("gvisor_stop_capture\n");
-
-	return SCAP_SUCCESS;
-	/*
-    scap_gvisor::engine *gvisor_ctx = (scap_gvisor::engine *)ctx;
-	return gvisor_ctx->stop_capture();
-	*/
+	return engine.m_handle->stop_capture();
 }
 
-int32_t gvisor_next(struct scap_engine_handle engine, scap_evt **pevent, uint16_t *pcpuid)
+static int32_t gvisor_next(struct scap_engine_handle engine, scap_evt **pevent, uint16_t *pcpuid)
 {
-	printf("gvisor_next\n");
-
-	return SCAP_SUCCESS;
-	/*
-	struct scap_gvisor::engine *gvisor_ctx = (scap_gvisor::engine *)ctx;
-	return gvisor_ctx->next(pevent, pcpuid);
-	*/
+	return engine.m_handle->next(pevent, pcpuid);
 }
 
-bool gvisor_match(scap_open_args* open_args)
+static bool gvisor_match(scap_open_args* open_args)
 {
 	return open_args->gvisor_socket != NULL;
 }
 
-/*
-int32_t getpid_global(scap_ctx* ctx, int64_t *pid)
+int32_t gvisor_configure(struct scap_engine_handle engine, enum scap_setting setting, unsigned long arg1, unsigned long arg2)
 {
-	*pid = 0;
 	return SCAP_SUCCESS;
-}*/
+}
+
+int32_t gvisor_get_stats(struct scap_engine_handle engine, scap_stats* stats)
+{
+	return SCAP_SUCCESS;
+}
+
+int32_t gvisor_get_n_tracepoint_hit(struct scap_engine_handle engine, long* ret)
+{
+	return SCAP_NOT_SUPPORTED;
+}
+
+uint32_t gvisor_get_n_devs(struct scap_engine_handle engine)
+{
+	return 0;
+}
+
+uint64_t gvisor_get_max_buf_used(struct scap_engine_handle engine)
+{
+	return 0;
+}
 
 #ifdef __cplusplus
 }
@@ -135,4 +122,9 @@ extern const struct scap_vtable scap_gvisor_engine = {
 	.next = gvisor_next,
 	.start_capture = gvisor_start_capture,
 	.stop_capture = gvisor_stop_capture,
+	.configure = gvisor_configure,
+	.get_stats = gvisor_get_stats,
+	.get_n_tracepoint_hit = gvisor_get_n_tracepoint_hit,
+	.get_n_devs = gvisor_get_n_devs,
+	.get_max_buf_used = gvisor_get_max_buf_used,
 };

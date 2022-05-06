@@ -24,6 +24,10 @@ typedef struct scap scap_t;
 typedef struct ppm_evt_hdr scap_evt;
 typedef struct scap_stats scap_stats;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct noop_engine* noop_alloc_handle(scap_t* main_handle, char* lasterr_ptr);
 void noop_free_handle(struct scap_engine_handle engine);
 int noop_close_engine(struct scap_engine_handle engine);
@@ -38,3 +42,7 @@ uint32_t noop_get_n_devs(struct scap_engine_handle engine);
 uint64_t noop_get_max_buf_used(struct scap_engine_handle engine);
 
 const struct scap_vtable scap_noop_engine;
+
+#ifdef __cplusplus
+}
+#endif
