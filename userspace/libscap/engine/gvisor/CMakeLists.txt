@@ -8,6 +8,7 @@ add_library(scap_engine_gvisor STATIC
     pkg/sentry/seccheck/points/container.pb.cc
     pkg/sentry/seccheck/points/sentry.pb.cc
     parsers.cpp
+    gvisor.cpp
 )
 
 add_dependencies(scap_engine_gvisor protobuf)
