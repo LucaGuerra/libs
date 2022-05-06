@@ -15,7 +15,7 @@ add_library(scap_engine_gvisor STATIC
 add_dependencies(scap_engine_gvisor protobuf)
 target_link_libraries(scap_engine_gvisor ${PROTOBUF_LIB} scap)
 
-set(GVISOR_COMMIT "f2b6fbb47e6c2b5b6435741d7e3e122c9a2f8346")
+set(GVISOR_COMMIT "2d6e64019b0ba10f35b6add02426331a78f085ac")
 
 file(DOWNLOAD
     https://raw.githubusercontent.com/google/gvisor/${GVISOR_COMMIT}/pkg/sentry/seccheck/points/syscall.proto
