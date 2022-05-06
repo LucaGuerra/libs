@@ -73,4 +73,10 @@ namespace parsers {
 parse_result parse_gvisor_proto(scap_const_sized_buffer gvisor_buf, scap_sized_buffer scap_buf);
 
 } // namespace parsers
+
+class engine {
+public:
+    uint32_t placeholder;
+};
+
 } // namespace scap_gvisor
