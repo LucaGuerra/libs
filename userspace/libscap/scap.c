@@ -2270,6 +2270,12 @@ struct ppm_proclist_info* scap_get_threadlist(scap_t* handle)
 	{
 		return scap_procfs_get_threadlist(handle);
 	}
+	else if(handle->m_vtable == &scap_gvisor_engine)
+	{
+		// TODO: this is not supported yet
+		handle->m_driver_procinfo->n_entries = 0;
+		return handle->m_driver_procinfo;
+	}
 	else
 	{
 		int ioctlres = ioctl(handle->m_dev_set.m_devs[0].m_fd, PPM_IOCTL_GET_PROCLIST, handle->m_driver_procinfo);

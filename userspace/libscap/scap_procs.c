@@ -1270,6 +1270,12 @@ int32_t scap_getpid_global(scap_t* handle, int64_t* pid)
 			 filename);
 		return SCAP_FAILURE;
 	}
+	else if(handle->m_vtable == &scap_gvisor_engine)
+	{
+		// We are not running in the same context of any of the sandboxes, nor any of them should have our same PID.
+		*pid = getpid();
+		return SCAP_SUCCESS;
+	}
 	else
 	{
 		*pid = ioctl(handle->m_dev_set.m_devs[0].m_fd, PPM_IOCTL_GET_CURRENT_PID);
