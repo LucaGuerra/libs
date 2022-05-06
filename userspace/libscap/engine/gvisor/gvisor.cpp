@@ -107,6 +107,11 @@ int32_t gvisor_next(struct scap_engine_handle engine, scap_evt **pevent, uint16_
 	*/
 }
 
+bool gvisor_match(scap_open_args* open_args)
+{
+	return open_args->gvisor_socket != NULL;
+}
+
 /*
 int32_t getpid_global(scap_ctx* ctx, int64_t *pid)
 {
@@ -118,52 +123,11 @@ int32_t getpid_global(scap_ctx* ctx, int64_t *pid)
 }
 #endif
 
-/*
-const struct scap_vtable scap_nodriver_engine = {
-	.name = "nodriver",
-	.mode = SCAP_MODE_NODRIVER,
-
-	.alloc_handle = alloc_handle,
-	.init = NULL,
-	.free_handle = noop_free_handle,
-	.close = noop_close_engine,
-	.next = next,
-	.start_capture = noop_start_capture,
-	.stop_capture = noop_stop_capture,
-	.configure = noop_configure,
-	.get_stats = noop_get_stats,
-	.get_n_tracepoint_hit = noop_get_n_tracepoint_hit,
-	.get_n_devs = noop_get_n_devs,
-	.get_max_buf_used = noop_get_max_buf_used,
-};
-*/
-
-/*
-struct scap_vtable scap_udig_engine = {
-	.name = "udig",
-	.mode = SCAP_MODE_LIVE,
-
-	.match = match,
-	.alloc_handle = alloc_handle,
-	.init = init,
-	.free_handle = free_handle,
-	.close = close_engine,
-	.next = next,
-	.start_capture = start_capture,
-	.stop_capture = stop_capture,
-	.configure = configure,
-	.get_stats = get_stats,
-	.get_n_tracepoint_hit = get_n_tracepoint_hit,
-	.get_n_devs = get_n_devs,
-	.get_max_buf_used = get_max_buf_used,
-};
-*/
-
 extern const struct scap_vtable scap_gvisor_engine = {
 	.name = "gvisor",
 	.mode = SCAP_MODE_LIVE,
 
-	// .match ???
+	.match = gvisor_match,
 	.alloc_handle = gvisor_alloc_handle,
 	.init = gvisor_init,
 	.free_handle = gvisor_free_handle,
