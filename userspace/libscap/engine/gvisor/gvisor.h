@@ -78,6 +78,8 @@ public:
 private:
     parse_result parse(scap_const_sized_buffer gvisor_msg);
 
+    std::string runsc(char *argv[]);
+
     char *m_lasterr;
     int m_listenfd;
     int m_epollfd;

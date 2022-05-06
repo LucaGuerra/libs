@@ -22,6 +22,7 @@ limitations under the License.
 #include <sys/un.h>
 #include <sys/epoll.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <vector>
 
@@ -272,6 +273,40 @@ int32_t engine::next(scap_evt **pevent, uint16_t *pcpuid)
 	}
 
     return SCAP_SUCCESS;
+}
+
+std::string engine::runsc(char *argv[])
+{
+	std::string res;
+	int pipefds[2];
+
+	int ret = pipe(pipefds);
+	if(ret)
+	{
+		return res;
+	}
+
+	int pid = fork();
+	if(pid > 0)
+	{
+		char line[512];
+		::close(pipefds[1]);
+		wait(NULL);
+		FILE *f = fdopen(pipefds[0], "r");
+		while(fgets(line, 512, f) != NULL)
+		{
+			res += std::string(line);
+		}
+		fclose(f);
+	}
+	else
+	{
+		::close(pipefds[0]);
+		dup2(pipefds[1], STDOUT_FILENO);
+		execvp("runsc", argv);
+	}
+
+	return res;
 }
 
 } // namespace scap_gvisor
