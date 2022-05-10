@@ -597,6 +597,131 @@ struct parse_result parse_socket(const char *proto, size_t proto_size, scap_size
 	return ret;
 }
 
+struct parse_result parse_setgid(gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	if(gvisor_evt.has_exit())
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETGID_X, 1, gvisor_evt.exit().result());
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETGID_E, 1, gvisor_evt.arg1());
+	}
+	
+	if(ret.status != SCAP_SUCCESS)
+	{
+		ret.error = scap_err;
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+	fill_context_data(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
+struct parse_result parse_setuid(gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	if(gvisor_evt.has_exit())
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETUID_X, 1, gvisor_evt.exit().result());
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETUID_E, 1, (uint32_t) gvisor_evt.arg1());
+	}
+	
+	if(ret.status != SCAP_SUCCESS)
+	{
+		ret.error = scap_err;
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+	fill_context_data(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+struct parse_result parse_setresuid(gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	if(gvisor_evt.has_exit())
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETRESUID_X, 1, gvisor_evt.exit().result());
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETRESUID_E, 3,
+												gvisor_evt.arg1(),
+												gvisor_evt.arg2(),
+												gvisor_evt.arg3());
+	}
+	
+	if(ret.status != SCAP_SUCCESS)
+	{
+		ret.error = scap_err;
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+	fill_context_data(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
+struct parse_result parse_setresgid(gvisor::syscall::Syscall &gvisor_evt, scap_sized_buffer event_buf)
+{
+	struct parse_result ret;
+	ret.status = SCAP_SUCCESS;
+	ret.size = 0;
+	char scap_err[SCAP_LASTERR_SIZE];
+	scap_err[0] = '\0';
+
+	if(gvisor_evt.has_exit())
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETRESGID_X, 1, gvisor_evt.exit().result());
+	}
+	else
+	{
+		ret.status = scap_event_encode_params(event_buf, &ret.size, scap_err, PPME_SYSCALL_SETRESGID_E, 3,
+												gvisor_evt.arg1(),
+												gvisor_evt.arg2(),
+												gvisor_evt.arg3());
+	}
+	
+	if(ret.status != SCAP_SUCCESS)
+	{
+		ret.error = scap_err;
+		return ret;
+	}
+
+	scap_evt *evt = static_cast<scap_evt*>(event_buf.buf);
+	fill_context_data(evt, gvisor_evt);
+	ret.scap_events.push_back(evt);
+
+	return ret;
+}
+
 struct parse_result parse_generic_syscall(const char *proto, size_t proto_size, scap_sized_buffer scap_buf)
 {
 	parse_result ret = {0};
@@ -614,6 +739,14 @@ struct parse_result parse_generic_syscall(const char *proto, size_t proto_size, 
 			return parse_clone(gvisor_evt, scap_buf, true);
 		case 57:
 			return parse_clone(gvisor_evt, scap_buf, false);
+		case 105:
+			return parse_setuid(gvisor_evt, scap_buf);
+		case 106:
+			return parse_setgid(gvisor_evt, scap_buf);
+		case 117:
+			return parse_setresuid(gvisor_evt, scap_buf);
+		case 119:
+			return parse_setresgid(gvisor_evt, scap_buf);
 		default:
 			ret.error = std::string("Unhandled syscall: ") + std::to_string(gvisor_evt.sysno());
 			ret.status = SCAP_TIMEOUT;
