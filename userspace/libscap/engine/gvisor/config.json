@@ -133,6 +133,86 @@
           ]
         },
         {
+          "name": "syscall/sysno/105/enter",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/105/exit",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/106/enter",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/106/exit",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/117/enter",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/117/exit",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/119/enter",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
+          "name": "syscall/sysno/119/exit",
+          "context_fields": [
+            "container_id",
+            "group_id",
+            "thread_id", 
+            "task_start_time",
+            "time"
+          ]
+        },
+        {
           "name": "syscall/connect/enter",
           "context_fields": [
             "credentials",
