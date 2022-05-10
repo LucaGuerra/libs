@@ -31,6 +31,30 @@ limitations under the License.
 
 namespace scap_gvisor {
 
+bool handshake(int client)
+{
+	struct handshake in = {};
+	ssize_t bytes = read(client, &in, sizeof(in));
+	if(bytes < (ssize_t)sizeof(in))
+	{
+		return false;
+	}
+
+	if(in.version < min_supported_version)
+	{
+		return false;
+	}
+
+	struct handshake out = {.version = current_version};
+	bytes = write(client, &out, sizeof(out));
+	if(bytes < (ssize_t)sizeof(out))
+	{
+		return false;
+	}
+	
+	return true;
+}
+
 void accept_thread(int listenfd, int epollfd)
 {
 	while(true)
@@ -43,6 +67,12 @@ void accept_thread(int listenfd, int epollfd)
 				continue;
 			}
 			return;
+		}
+
+		if(!handshake(client))
+		{
+			close(client);
+			continue;
 		}
 
 		struct epoll_event evt;
