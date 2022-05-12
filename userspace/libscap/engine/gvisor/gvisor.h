@@ -79,6 +79,7 @@ private:
     parse_result parse(scap_const_sized_buffer gvisor_msg);
 
     std::string runsc(char *argv[]);
+    void runsc_list();
 
     char *m_lasterr;
     int m_listenfd;
@@ -87,6 +88,7 @@ private:
     std::thread m_accept_thread;
     std::deque<scap_evt *> m_event_queue{};
     scap_sized_buffer m_scap_buf;
+    std::vector<std::string> running_sandboxes;
 };
 
 
