@@ -18,6 +18,7 @@ limitations under the License.
 #include "engine/gvisor/runsc.h"
 #include <gtest/gtest.h>
 
+// run with sudo 
 TEST(gvisor_runsc, start_tracing)
 {
 	runsc_manager manager(
@@ -25,5 +26,6 @@ TEST(gvisor_runsc, start_tracing)
 		"/home/ubuntu/falcosecurity/libs/userspace/libscap/engine/gvisor/config.json"
 	);
 
-	manager.start_trace_session();
+	EXPECT_TRUE(manager.start_trace_session());
+	
 }

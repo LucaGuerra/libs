@@ -15,8 +15,12 @@ limitations under the License.
 
 */
 
+#include <iostream>
+
 #include <unistd.h>
 #include <sys/wait.h>
+
+#include "json/json.h"
 
 #include "runsc.h"
 
@@ -28,6 +32,16 @@ runsc_manager::runsc_manager(std::string root_path, std::string trace_session_co
 
 bool runsc_manager::start_trace_session()
 {
+	// list running sandboxes
+	std::vector<std::string> sandboxes;
+	runsc_list(sandboxes);
+	for(std::string s : sandboxes)
+	{
+		std::cout << s << std::endl;
+		runsc_trace_create(s);
+		runsc_trace_procfs(s);
+	}
+
 	return true;
 }
 
@@ -79,7 +93,7 @@ std::vector<std::string> runsc_manager::runsc(char *argv[])
 	return res;
 }
 
-void runsc_manager::runsc_list()
+void runsc_manager::runsc_list(std::vector<std::string> &sandboxes)
 {
 	const char *argv[] = {
 		"runsc", 
@@ -96,7 +110,7 @@ void runsc_manager::runsc_list()
 		if(line.find("running") != std::string::npos)
 		{
 			std::string sandbox = line.substr(0, line.find_first_of(" ", 0));
-			m_running_sandboxes.emplace_back(sandbox);
+			sandboxes.emplace_back(sandbox);
 		}
 	}
 }
@@ -132,4 +146,15 @@ void runsc_manager::runsc_trace_procfs(std::string sandbox_id)
 	};
 
 	std::vector<std::string> output = runsc((char **)argv);
+
+	for(std::string s : output)
+	{
+		Json::Value root;   
+    	Json::Reader reader;
+		bool res = reader.parse(s.c_str(), root);
+		if(res)
+		{
+			std::cout << root.toStyledString() << std::endl;
+		}
+	}
 }

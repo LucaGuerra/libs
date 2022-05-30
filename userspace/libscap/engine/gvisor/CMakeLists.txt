@@ -1,6 +1,7 @@
 include(protobuf)
+include(jsoncpp)
 
-include_directories(${LIBSCAP_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${LIBSCAP_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} ${JSONCPP_INCLUDE})
 
 add_library(scap_engine_gvisor STATIC
     pkg/sentry/seccheck/points/syscall.pb.cc
@@ -14,6 +15,7 @@ add_library(scap_engine_gvisor STATIC
 
 add_library(scap_gvisor_runsc STATIC 
     runsc.cpp
+    ${JSONCPP_LIB_SRC}
 )
 
 add_dependencies(scap_engine_gvisor protobuf)

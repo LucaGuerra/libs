@@ -28,13 +28,11 @@ public:
 
 	bool start_trace_session();
 
-private:
 	std::vector<std::string> runsc(char *argv[]);
-	void runsc_list();
+	void runsc_list(std::vector<std::string> &sandboxes);
     void runsc_trace_create(std::string sandbox_id);
     void runsc_trace_procfs(std::string sandbox_id);
 
 	std::string m_root_path;
 	std::string m_trace_session_config_path;
-	std::vector<std::string> m_running_sandboxes;
 };
