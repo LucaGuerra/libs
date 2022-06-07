@@ -1248,8 +1248,19 @@ int32_t scap_getpid_global(scap_t* handle, int64_t* pid)
 	snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "Cannot get pid (capture not enabled)");
 	return SCAP_FAILURE;
 #else
-
+	int32_t getpid_from_status = 0;
 	if(handle->m_bpf || handle->m_vtable == &scap_udig_engine)
+	{
+		getpid_from_status = 1;
+	}
+
+#ifdef HAS_ENGINE_GVISOR
+	if(handle->m_vtable == &scap_gvisor_engine)
+	{
+		getpid_from_status = 1;
+	}
+#endif
+	if(getpid_from_status)
 	{
 		char filename[SCAP_MAX_PATH_SIZE];
 		char line[512];
