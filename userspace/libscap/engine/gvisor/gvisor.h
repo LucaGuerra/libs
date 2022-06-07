@@ -36,6 +36,7 @@ namespace scap_gvisor {
 
 constexpr uint32_t min_supported_version = 1;
 constexpr uint32_t current_version = 1;
+constexpr size_t max_line_size = 2048;
 
 #pragma pack(push, 1)
 struct header
@@ -97,6 +98,8 @@ private:
     int32_t process_message_from_fd(int fd);
     void free_sandbox_buffers();
 
+    std::vector<std::string> runsc(char *argv[]);
+
     char *m_lasterr;
     int m_listenfd;
     int m_epollfd;
@@ -106,6 +109,9 @@ private:
 
     // buffers in which to store events, one per each active sandbox, indexed by fd
     std::map<int, scap_sized_buffer> m_sandbox_buffers;
+
+    std::string m_root_path;
+	std::string m_podinit_path;
 };
 
 } // namespace scap_gvisor
