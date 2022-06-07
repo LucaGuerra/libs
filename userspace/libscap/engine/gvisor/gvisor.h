@@ -34,12 +34,22 @@ limitations under the License.
 
 namespace scap_gvisor {
 
+constexpr uint32_t min_supported_version = 1;
+constexpr uint32_t current_version = 1;
+
 #pragma pack(push, 1)
 struct header
 {
 	uint16_t header_size;
 	uint16_t message_type;
 	uint32_t dropped_count;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct handshake
+{
+    uint32_t version;
 };
 #pragma pack(pop)
 
