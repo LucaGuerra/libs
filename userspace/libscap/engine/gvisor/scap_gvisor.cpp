@@ -400,4 +400,22 @@ std::vector<std::string> engine::runsc_list()
 	return sandboxes;
 }
 
+void engine::runsc_trace_create(std::string &sandbox_id)
+{
+	const char *argv[] = {
+		"runsc", 
+		"--root",
+		m_root_path.c_str(),
+		"trace",
+		"create",
+		"--force",
+		"--config", 
+		m_podinit_path.c_str(),
+		sandbox_id.c_str(),
+		NULL
+	};
+
+	std::vector<std::string> output = runsc((char **)argv);
+}
+
 } // namespace scap_gvisor
