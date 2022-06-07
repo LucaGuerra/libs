@@ -99,6 +99,7 @@ private:
     void free_sandbox_buffers();
 
     std::vector<std::string> runsc(char *argv[]);
+    std::vector<std::string> runsc_list();
 
     char *m_lasterr;
     int m_listenfd;
