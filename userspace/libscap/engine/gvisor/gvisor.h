@@ -46,13 +46,6 @@ struct header
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-struct handshake
-{
-    uint32_t version;
-};
-#pragma pack(pop)
-
 namespace parsers {
 
 struct parse_result {
