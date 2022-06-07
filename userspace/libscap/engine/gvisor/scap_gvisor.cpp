@@ -27,6 +27,7 @@ limitations under the License.
 #include <vector>
 
 #include "gvisor.h"
+#include "pkg/sentry/seccheck/points/common.pb.h"
 
 #include "../../../common/strlcpy.h"
 
@@ -115,25 +116,35 @@ void engine::free_sandbox_buffers()
 
 static bool handshake(int client)
 {
-	struct handshake in = {};
-	ssize_t bytes = read(client, &in, sizeof(in));
-	if(bytes < (ssize_t)sizeof(in))
+	std::vector<char> buf(GVISOR_MAX_MESSAGE_SIZE);
+	ssize_t bytes = read(client, buf.data(), buf.size());
+	if(bytes < 0)
+	{
+		return false;
+	}
+	else if(bytes == buf.size())
 	{
 		return false;
 	}
 
-	if(in.version < min_supported_version)
+	gvisor::common::Handshake in = {};
+	if(!in.ParseFromArray(buf.data(), bytes))
 	{
 		return false;
 	}
 
-	struct handshake out = {.version = current_version};
-	bytes = write(client, &out, sizeof(out));
-	if(bytes < (ssize_t)sizeof(out))
+	if(in.version() < min_supported_version)
 	{
 		return false;
 	}
 
+	gvisor::common::Handshake out;
+	out.set_version(current_version);
+	if(!out.SerializeToFileDescriptor(client))
+	{
+		return false;
+	}
+	
 	return true;
 }
 
