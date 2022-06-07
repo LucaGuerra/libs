@@ -29,6 +29,10 @@ limitations under the License.
 
 namespace scap_gvisor {
 
+constexpr uint32_t min_supported_version = 1;
+constexpr uint32_t current_version = 1;
+constexpr size_t max_line_size = 2048;
+
 #pragma pack(push, 1)
 struct header
 {
@@ -102,6 +106,8 @@ private:
     int32_t process_message_from_fd(int fd);
     void free_sandbox_buffers();
 
+    std::vector<std::string> runsc(char *argv[]);
+
     char *m_lasterr;
     int m_listenfd = 0;
     int m_epollfd = 0;
@@ -115,6 +121,9 @@ private:
 
     // stores per-sandbox data. All buffers used to contain parsed event data are owned by this map
     std::unordered_map<int, sandbox_entry> m_sandbox_data;
+
+    std::string m_root_path;
+	std::string m_podinit_path;
 };
 
 } // namespace scap_gvisor
