@@ -26,6 +26,7 @@ limitations under the License.
 #include <sys/wait.h>
 
 #include <vector>
+#include <fstream>
 
 #include <json/json.h>
 
@@ -91,19 +92,38 @@ engine::~engine()
 
 int32_t engine::init(std::string socket_path, std::string runsc_root_path, std::string trace_session_config_path)
 {
-	m_runsc_root_path = runsc_root_path.empty() ? default_runsc_root_path : runsc_root_path;
-	m_trace_session_config_path = trace_session_config_path.empty() ? default_trace_session_config_path : trace_session_config_path;
-
-	// Initialize the listen fd
 	m_socket_path = socket_path;
-	if (m_socket_path.empty())
+	if(m_socket_path.empty())
 	{
 		strlcpy(m_lasterr, "Empty gVisor socket path", SCAP_LASTERR_SIZE);
 		return SCAP_FAILURE;
 	}
-
 	unlink(m_socket_path.c_str());
 
+	if(runsc_root_path.empty())
+	{
+		m_runsc_root_path = default_runsc_root_path;
+	}
+	else 
+	{
+		m_runsc_root_path = runsc_root_path;
+	}
+
+	if(trace_session_config_path.empty())
+	{
+		m_trace_session_config_path = generate_trace_session_config();
+		if(m_trace_session_config_path.empty())
+		{
+			strlcpy(m_lasterr, "Cannot generate gVisor trace session config", SCAP_LASTERR_SIZE);
+			return SCAP_FAILURE;
+		}
+	}
+	else 
+	{
+		m_trace_session_config_path = trace_session_config_path;
+	}
+
+	// Initialize the listen fd
 	int sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1)
 	{
@@ -506,6 +526,52 @@ void engine::runsc_trace_create(const std::string &sandbox_id, bool force)
 	};
 
 	runsc((char **)argv);
+}
+
+std::string engine::generate_trace_session_config()
+{
+	Json::Value context_fields;
+	for(const auto &field : m_context_fields)
+	{
+		context_fields.append(field);
+	}
+
+	Json::Value points;
+	for(const auto& point_name : m_gvisor_points)
+	{
+		Json::Value point;
+		point["name"] = point_name;
+		point["context_fields"] = context_fields;
+		points.append(point);
+	}
+
+	Json::Value sinks, sink;
+	sink["name"] = "remote";
+	sink["config"]["endpoint"] = m_socket_path;
+	sinks.append(sink);
+	
+	Json::Value trace_session;
+	trace_session["name"] = "Default";
+	trace_session["points"] = points;
+	trace_session["sinks"] = sinks;
+
+	Json::Value root;
+	root["trace_session"] = trace_session;
+
+	char temp_path[] = "/tmp/gvisor-trace-session-config-XXXXXX";
+	int fd = mkstemp(temp_path);
+	if(fd < 0)
+	{
+		return "";
+	}
+	::close(fd);
+	
+	std::ofstream ofs(temp_path, std::ofstream::out);
+	Json::StreamWriterBuilder builder;
+	const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+	writer->write(root, &ofs);
+
+	return temp_path;
 }
 
 } // namespace scap_gvisor
