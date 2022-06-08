@@ -525,10 +525,21 @@ void sinsp::open_live_common(uint32_t timeout_ms, scap_mode_t mode)
 	oargs.proc_callback = NULL;
 	oargs.proc_callback_context = NULL;
 	oargs.udig = m_udig;
+
 	oargs.gvisor_socket = NULL;
+	oargs.runsc_root_path = "";
+	oargs.trace_session_config_path = "";
 	if(m_gvisor_socket != "")
 	{
 		oargs.gvisor_socket = m_gvisor_socket.c_str();
+	}
+	if(m_runsc_root_path != "")
+	{
+		oargs.runsc_root_path = m_runsc_root_path.c_str();
+	}
+	if(m_trace_session_config_path != "")
+	{
+		oargs.trace_session_config_path = m_trace_session_config_path.c_str();
 	}
 
 	fill_syscalls_of_interest(&oargs);
@@ -589,9 +600,11 @@ void sinsp::open_udig(uint32_t timeout_ms)
 	open_live_common(timeout_ms, SCAP_MODE_LIVE);
 }
 
-void sinsp::open_gvisor(std::string socket_path, uint32_t timeout_ms)
+void sinsp::open_gvisor(std::string socket_path, std::string runsc_root_path, std::string trace_session_config_path, uint32_t timeout_ms)
 {
 	m_gvisor_socket = socket_path;
+	m_runsc_root_path = runsc_root_path;
+	m_trace_session_config_path = trace_session_config_path;
 	open_live_common(timeout_ms, SCAP_MODE_LIVE);
 }
 

@@ -37,6 +37,8 @@ namespace scap_gvisor {
 constexpr uint32_t min_supported_version = 1;
 constexpr uint32_t current_version = 1;
 constexpr size_t max_line_size = 2048;
+const std::string default_runsc_root_path = "/var/run/docker/runtime-runc/moby";
+const std::string default_trace_session_config_path = "/home/ubuntu/falcosecurity/libs/userspace/libscap/engine/gvisor/config.json";
 
 #pragma pack(push, 1)
 struct header
@@ -86,7 +88,7 @@ class engine {
 public:
     engine(char *lasterr);
     ~engine();
-    int32_t init(std::string socket_path);
+    int32_t init(std::string socket_path, std::string runsc_root_path, std::string trace_session_config_path);
     int32_t close();
 
     int32_t start_capture();
@@ -112,8 +114,8 @@ private:
     // buffers in which to store events, one per each active sandbox, indexed by fd
     std::map<int, scap_sized_buffer> m_sandbox_buffers;
 
-    std::string m_root_path = "/var/run/docker/runtime-runc/moby";
-	std::string m_podinit_path = "/home/ubuntu/falcosecurity/libs/userspace/libscap/engine/gvisor/config.json";
+    std::string m_runsc_root_path;
+	std::string m_trace_session_config_path;
 };
 
 } // namespace scap_gvisor

@@ -44,12 +44,12 @@ engine::~engine()
 
 }
 
-int32_t engine::init(std::string socket_path)
+int32_t engine::init(std::string socket_path, std::string runsc_root_path, std::string trace_session_config_path)
 {
+	m_runsc_root_path = runsc_root_path.empty() ? default_runsc_root_path : runsc_root_path;
+	m_trace_session_config_path = trace_session_config_path.empty() ? default_trace_session_config_path : trace_session_config_path;
+
 	// Initialize the listen fd
-	int sock, ret;
-	struct sockaddr_un address;
-	unsigned long old_umask;
 	m_socket_path = socket_path;
 	if (m_socket_path.empty())
 	{
@@ -59,18 +59,19 @@ int32_t engine::init(std::string socket_path)
 
 	unlink(m_socket_path.c_str());
 
-	sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
+	int sock = socket(PF_UNIX, SOCK_SEQPACKET, 0);
 	if(sock == -1)
 	{
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot create unix socket: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
+	struct sockaddr_un address;
 	memset(&address, 0, sizeof(address));
 	address.sun_family = AF_UNIX;
 	strlcpy(address.sun_path, m_socket_path.c_str(), sizeof(address.sun_path));
 
-	old_umask = umask(0);
-	ret = bind(sock, (struct sockaddr *)&address, sizeof(address));
+	unsigned long old_umask = umask(0);
+	int ret = bind(sock, (struct sockaddr *)&address, sizeof(address));
 	if(ret == -1)
 	{
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot bind unix socket: %s", strerror(errno));
@@ -416,7 +417,7 @@ std::vector<std::string> engine::runsc_list()
 	const char *argv[] = {
 		"runsc", 
 		"--root",
-		m_root_path.c_str(),
+		m_runsc_root_path.c_str(),
 		"list",
 		NULL
 	};
@@ -440,12 +441,12 @@ void engine::runsc_trace_create(const std::string &sandbox_id, bool force)
 	const char *argv[] = {
 		"runsc", 
 		"--root",
-		m_root_path.c_str(),
+		m_runsc_root_path.c_str(),
 		"trace",
 		"create",
 		force ? "--force" : "",
 		"--config", 
-		m_podinit_path.c_str(),
+		m_trace_session_config_path.c_str(),
 		sandbox_id.c_str(),
 		NULL
 	};
