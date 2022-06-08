@@ -38,7 +38,6 @@ constexpr uint32_t min_supported_version = 1;
 constexpr uint32_t current_version = 1;
 constexpr size_t max_line_size = 2048;
 const std::string default_runsc_root_path = "/var/run/docker/runtime-runc/moby";
-const std::string default_trace_session_config_path = "/home/ubuntu/falcosecurity/libs/userspace/libscap/engine/gvisor/config.json";
 
 #pragma pack(push, 1)
 struct header
@@ -103,6 +102,7 @@ private:
     std::vector<std::string> runsc(char *argv[]);
     std::vector<std::string> runsc_list();
     void runsc_trace_create(const std::string &sandbox_id, bool force);
+    std::string generate_trace_session_config();
 
     char *m_lasterr;
     int m_listenfd;
@@ -116,6 +116,28 @@ private:
 
     std::string m_runsc_root_path;
 	std::string m_trace_session_config_path;
+	const std::vector<std::string> m_gvisor_points = {
+		"container/start",
+		"syscall/openat/enter",
+		"syscall/openat/exit",
+		"syscall/execve/enter",
+		"syscall/execve/exit",
+		"syscall/socket/enter",
+		"syscall/socket/exit",
+		"syscall/connect/enter",
+		"syscall/connect/enter",
+		"sentry/clone",
+		"sentry/task_exit",
+		"sentry/execve",
+	};
+	const std::vector<std::string> m_context_fields = {
+		"cwd",
+		"credentials",
+		"container_id",
+		"thread_id",
+		"task_start_time",
+		"time",
+	};
 };
 
 } // namespace scap_gvisor
