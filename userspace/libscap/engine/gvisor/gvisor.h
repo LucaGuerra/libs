@@ -36,7 +36,7 @@ namespace scap_gvisor {
 
 constexpr uint32_t min_supported_version = 1;
 constexpr uint32_t current_version = 1;
-constexpr size_t max_line_size = 2048;
+constexpr size_t max_line_size = 100000;
 const std::string default_runsc_root_path = "/var/run/docker/runtime-runc/moby";
 
 #pragma pack(push, 1)
@@ -102,6 +102,7 @@ private:
     std::vector<std::string> runsc(char *argv[]);
     std::vector<std::string> runsc_list();
     void runsc_trace_create(const std::string &sandbox_id, bool force);
+    void runsc_trace_procfs(const std::string &sandbox_id);
     std::string generate_trace_session_config();
 
     char *m_lasterr;

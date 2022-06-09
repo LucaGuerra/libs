@@ -210,6 +210,9 @@ int32_t engine::start_capture()
 	//
 	std::vector<std::string> existing_sandboxes = runsc_list();
 
+	for(const auto &sandbox : existing_sandboxes)
+		runsc_trace_procfs(sandbox);
+
 	// Start accepting connections
 	m_accept_thread = std::thread(accept_thread, m_listenfd, m_epollfd);
 	m_accept_thread.detach();
@@ -474,6 +477,33 @@ void engine::runsc_trace_create(const std::string &sandbox_id, bool force)
 	};
 
 	runsc((char **)argv);
+}
+
+void engine::runsc_trace_procfs(const std::string &sandbox_id)
+{
+	const char *argv[] = {
+		"runsc", 
+		"--root",
+		m_runsc_root_path.c_str(),
+		"trace",
+		"procfs",
+		sandbox_id.c_str(),
+		NULL, 
+	};
+
+	std::vector<std::string> output = runsc((char **)argv);
+	for(const auto &line : output)
+	{
+		Json::Value root;
+		Json::CharReaderBuilder builder;
+		std::string err;
+    	const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+		bool res = reader->parse(line.c_str(), line.c_str() + line.size() - 1, &root, &err);
+    	if(res)
+		{
+			std::cout << root.toStyledString() << std::endl;
+		}
+	}
 }
 
 std::string engine::generate_trace_session_config()
