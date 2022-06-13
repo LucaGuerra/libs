@@ -133,13 +133,13 @@ int32_t engine::init(std::string socket_path, std::string runsc_root_path, std::
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot create unix socket: %s", strerror(errno));
 		return SCAP_FAILURE;
 	}
-	struct sockaddr_un address;
+	sockaddr_un address;
 	memset(&address, 0, sizeof(address));
 	address.sun_family = AF_UNIX;
 	strlcpy(address.sun_path, m_socket_path.c_str(), sizeof(address.sun_path));
 
 	unsigned long old_umask = umask(0);
-	int ret = bind(sock, (struct sockaddr *)&address, sizeof(address));
+	int ret = bind(sock, (sockaddr *)&address, sizeof(address));
 	if(ret == -1)
 	{
 		snprintf(m_lasterr, SCAP_LASTERR_SIZE, "Cannot bind unix socket: %s", strerror(errno));
@@ -236,7 +236,7 @@ static void accept_thread(int listenfd, int epollfd)
 			continue;
 		}
 
-		struct epoll_event evt;
+		epoll_event evt;
 		evt.data.fd = client;
 		evt.events = EPOLLIN;
 		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, client, &evt) < 0)
@@ -346,7 +346,7 @@ int32_t engine::process_message_from_fd(int fd)
 
 	scap_const_sized_buffer gvisor_msg = {.buf = static_cast<void*>(message), .size = static_cast<size_t>(nbytes)};
 
-	struct parsers::parse_result parse_result = parsers::parse_gvisor_proto(gvisor_msg, m_sandbox_data[fd].m_buf);
+	parsers::parse_result parse_result = parsers::parse_gvisor_proto(gvisor_msg, m_sandbox_data[fd].m_buf);
 	if(parse_result.status == SCAP_INPUT_TOO_SMALL)
 	{
 		if (m_sandbox_data[fd].expand_buffer(parse_result.size) == SCAP_FAILURE)
@@ -373,7 +373,7 @@ int32_t engine::process_message_from_fd(int fd)
 
 int32_t engine::next(scap_evt **pevent, uint16_t *pcpuid)
 {
-	struct epoll_event evts[max_ready_sandboxes];
+	epoll_event evts[max_ready_sandboxes];
 
 	// if there are still events to process do it before getting more
 	if(!m_event_queue.empty())
