@@ -104,6 +104,7 @@ private:
     std::vector<std::string> runsc(char *argv[]);
     std::vector<std::string> runsc_list();
     void runsc_trace_create(const std::string &sandbox_id, bool force);
+    void runsc_trace_delete(const std::string &session_name, const std::string &sandbox_id);
     std::string generate_trace_session_config();
 
     char *m_lasterr;

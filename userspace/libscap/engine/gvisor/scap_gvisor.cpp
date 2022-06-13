@@ -531,6 +531,23 @@ void engine::runsc_trace_create(const std::string &sandbox_id, bool force)
 	runsc((char **)argv);
 }
 
+void engine::runsc_trace_delete(const std::string &session_name, const std::string &sandbox_id)
+{
+	const char *argv[] = {
+		"runsc", 
+		"--root",
+		m_runsc_root_path.c_str(),
+		"trace",
+		"delete",
+		"--name",
+		session_name.c_str(),
+		sandbox_id.c_str(),
+		NULL
+	};
+
+	runsc((char **)argv);
+}
+
 std::string engine::generate_trace_session_config()
 {
 	Json::Value context_fields;
