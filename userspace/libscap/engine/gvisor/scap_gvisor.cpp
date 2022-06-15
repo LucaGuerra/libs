@@ -620,6 +620,37 @@ engine::runsc_result engine::runsc_trace_delete(const std::string &session_name,
 	return runsc((char **)argv);
 }
 
+engine::runsc_result engine::runsc_trace_procfs(const std::string &sandbox_id)
+{
+	runsc_result res;
+
+	const char *argv[] = {
+		"runsc", 
+		"--root",
+		m_runsc_root_path.c_str(),
+		"trace",
+		"procfs",
+		sandbox_id.c_str(),
+		NULL, 
+	};
+
+	res = runsc((char **)argv);
+	for(const auto &line : res.output)
+	{
+		Json::Value root;
+		Json::CharReaderBuilder builder;
+		std::string err;
+    	const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+		bool res = reader->parse(line.c_str(), line.c_str() + line.size() - 1, &root, &err);
+    	if(res)
+		{
+			std::cout << root.toStyledString() << std::endl;
+		}
+	}
+
+	return res;
+}
+
 std::string engine::generate_trace_session_config()
 {
 	Json::Value context_fields;

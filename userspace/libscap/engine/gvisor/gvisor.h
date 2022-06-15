@@ -111,6 +111,7 @@ private:
     runsc_result runsc_list();
     runsc_result runsc_trace_create(const std::string &sandbox_id, bool force);
     runsc_result runsc_trace_delete(const std::string &session_name, const std::string &sandbox_id);
+    runsc_result runsc_trace_procfs(const std::string &sandbox_id);
     std::string generate_trace_session_config();
 
     char *m_lasterr;
