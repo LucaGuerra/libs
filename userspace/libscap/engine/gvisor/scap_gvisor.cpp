@@ -335,6 +335,7 @@ int32_t engine::stop_capture()
 uint32_t engine::get_threadinfos(uint64_t *n, const scap_threadinfo **tinfos)
 {
 	// Add logic to parse process and file list from runsc here
+	get_procfs_state();
 
 	*tinfos = m_threadinfos_threads.data();
 	*n = m_threadinfos_threads.size();
@@ -611,6 +612,110 @@ engine::runsc_result engine::runsc_trace_delete(const std::string &session_name,
 	};
 
 	return runsc((char **)argv);
+}
+
+engine::runsc_result engine::runsc_trace_procfs(const std::string &sandbox_id)
+{
+	const char *argv[] = {
+		"runsc", 
+		"--root",
+		m_root_path.c_str(),
+		"trace",
+		"procfs",
+		sandbox_id.c_str(),
+		NULL, 
+	};
+
+	return runsc((char **)argv);
+}
+
+void engine::get_procfs_state()
+{
+	engine::runsc_result sandboxes_res = runsc_list();
+	std::vector<std::string> &sandboxes = sandboxes_res.output;
+
+	for(const auto &sandbox : sandboxes)
+	{
+		runsc_result procfs_res = runsc_trace_procfs(sandbox);
+		for(const auto &line : procfs_res.output)
+		{
+			scap_threadinfo tinfo;
+			Json::Value root;
+			Json::CharReaderBuilder builder;
+			std::string err;
+			const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+			bool json_parse = reader->parse(line.c_str(), line.c_str() + line.size() - 1, &root, &err);
+			if(!json_parse)
+			{
+				continue;
+			}
+			//
+			// Fill threadinfo
+			//
+
+			// tid
+			auto &status = root["status"];
+			tinfo.tid = parsers::generate_tid_field(status["pid"].asUInt64(), sandbox);
+
+			// pid
+			auto &stat = root["stat"];
+			tinfo.pid = parsers::generate_tid_field(stat["pgid"].asUInt64(), sandbox);
+
+			// sid
+			tinfo.sid = stat["sid"].asUInt64();
+
+			// vpgid
+			tinfo.vpgid = stat["pgid"].asUInt64();
+
+			// comm
+			strlcpy(tinfo.comm, status["comm"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+
+			// exe
+			strlcpy(tinfo.exe, root["args"][0].asCString(), SCAP_MAX_PATH_SIZE + 1);
+
+			// exepath
+			strlcpy(tinfo.exepath, root["exe"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+
+			// args
+			std::string args;
+			for (Json::Value::ArrayIndex i = 0; i != root.size(); i++)
+			{
+				args += root["args"][i].asString();
+				args.push_back('\0');
+			}
+			tinfo.args_len = args.size();
+			memcpy(tinfo.args, args.data(), SCAP_MAX_ARGS_SIZE + 1);
+			tinfo.args[SCAP_MAX_ARGS_SIZE] = '\0';
+
+			// env
+			std::string env;
+			for (Json::Value::ArrayIndex i = 0; i != root.size(); i++)
+			{
+				env += root["env"][i].asString();
+				env.push_back('\0');
+			}
+			tinfo.env_len = env.size();
+			memcpy(tinfo.env, env.data(), SCAP_MAX_ENV_SIZE + 1);
+			tinfo.env[SCAP_MAX_ENV_SIZE] = '\0';
+
+			// cwd
+			strlcpy(tinfo.cwd, root["cwd"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+
+			// vtid
+			tinfo.vtid = status["pid"].asUInt64();
+
+			// vpid
+			tinfo.vpid = status["pgid"].asUInt64();
+
+			// root
+			strlcpy(tinfo.root, root["root"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+
+			// clone_ts
+			tinfo.clone_ts = root["clone_ts"].asUInt64();
+			
+			m_threadinfos_threads.emplace_back(tinfo);
+		}
+	}
 }
 
 } // namespace scap_gvisor

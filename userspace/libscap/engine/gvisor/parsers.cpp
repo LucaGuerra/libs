@@ -45,7 +45,7 @@ typedef std::function<parse_result(const char *proto, size_t proto_size, scap_si
 
 // In gVisor there's no concept of tid and tgid but only vtid and vtgid.
 // However, to fit into sinsp we do need values for tid and tgid.
-static uint64_t generate_tid_field(uint64_t tid, std::string container_id_hex)
+uint64_t generate_tid_field(uint64_t tid, std::string container_id_hex)
 {
 	std::string container_id_64 = container_id_hex.length() > 16 ? container_id_hex.substr(0, 15) : container_id_hex;
 
