@@ -44,7 +44,7 @@ limitations under the License.
 #include "../../driver/bpf/maps.h"
 #include "compat/misc.h"
 #include "compat/bpf.h"
-#include "../common/strlcpy.h"
+#include "strlcpy.h"
 #include "noop.h"
 
 #ifndef MINIMAL_BUILD

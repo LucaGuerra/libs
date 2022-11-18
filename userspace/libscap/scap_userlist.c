@@ -18,7 +18,7 @@ limitations under the License.
 #include <stdio.h>
 #include "scap.h"
 #include "scap-int.h"
-#include "../common/strlcpy.h"
+#include "strlcpy.h"
 
 #if defined(HAS_CAPTURE) && !defined(_WIN32)
 #include <sys/types.h>

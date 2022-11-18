@@ -17,7 +17,7 @@
 #include <windows.h>
 #endif // _WIN32
 
-#include "../common/strlcpy.h"
+#include "strlcpy.h"
 #include "udig.h"
 #include "scap.h"
 #include "scap-int.h"

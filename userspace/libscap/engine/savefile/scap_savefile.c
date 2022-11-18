@@ -29,7 +29,7 @@ struct iovec {
 };
 #endif
 
-#include "../common/strlcpy.h"
+#include "strlcpy.h"
 #include "savefile.h"
 #include "scap.h"
 #include "scap-int.h"
