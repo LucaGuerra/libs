@@ -1,7 +1,6 @@
 rules:
   - id: falco-insecure-api-strncpy
     metadata:
-      author: The Falco Authors
       references:
         - https://cwe.mitre.org/data/definitions/120
       confidence: HIGH
