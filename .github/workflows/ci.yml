@@ -387,4 +387,4 @@ jobs:
             --error \
             --metrics=off \
             --baseline-commit ${{ github.event.pull_request.base.sha }} \
-            --config="semgrep/*.yaml"
+            --config=./semgrep
