@@ -6,7 +6,7 @@ rules:
         - https://cwe.mitre.org/data/definitions/120
       confidence: HIGH
     message: >-
-      The function snprintf is not used in the Falco codebase as it is error prone.
+      The libc function strncpy is not used in the Falco codebase as it is error prone.
       Read more: https://www.cisa.gov/uscert/bsi/articles/knowledge/coding-practices/strncpy-and-strncat
       
       In the Falco codebase you can use the safer alternative strlcpy().
@@ -14,4 +14,4 @@ rules:
     languages:
       - c
       - cpp
-    pattern: snprintf(...)
+    pattern: strncpy(...)
