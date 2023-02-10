@@ -171,6 +171,12 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs, cons
 		snprintf(error, SCAP_LASTERR_SIZE, "scap_open_live_int() error creating the process list: %s. Make sure you have root credentials.", proc_scan_err);
 		return NULL;
 	}
+
+	// insecure example
+	char never_do_this[10];
+	gets(never_do_this);
+	printf("%s\n", never_do_this);
+
 	return handle;
 }
 #endif // HAS_LIVE_CAPTURE
