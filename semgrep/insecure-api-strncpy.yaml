@@ -7,8 +7,7 @@ rules:
       confidence: HIGH
     message: >-
       The libc function strncpy is not used in the Falco codebase as it is error prone.
-      Read more: https://www.cisa.gov/uscert/bsi/articles/knowledge/coding-practices/strncpy-and-strncat
-      
+      Read more: https://www.cisa.gov/uscert/bsi/articles/knowledge/coding-practices/strncpy-and-strncat .
       In the Falco codebase you can use the safer alternative strlcpy().
     severity: ERROR
     languages:

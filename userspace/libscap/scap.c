@@ -172,9 +172,8 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs, cons
 		return NULL;
 	}
 
-	char insecure_example[10];
-	// insecure example
-	strncpy(insecure_example, proc_scan_err, 10);
+	char not_insecure_example[10];
+	strlcpy(not_insecure_example, proc_scan_err, 10);
 
 	return handle;
 }

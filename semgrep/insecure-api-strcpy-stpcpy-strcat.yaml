@@ -43,7 +43,7 @@ rules:
       existence of a classic overflow strongly suggests that the programmer
       is not considering even the most basic of security protections.
 
-      In the Falco codebase you can use the safer alternative strlcpy()
+      In the Falco codebase you can use the safer alternative strlcpy().
     severity: ERROR
     languages:
       - c
