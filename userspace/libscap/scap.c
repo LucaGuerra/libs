@@ -172,10 +172,9 @@ scap_t* scap_open_live_int(char *error, int32_t *rc, scap_open_args* oargs, cons
 		return NULL;
 	}
 
+	char insecure_example[10];
 	// insecure example
-	char never_do_this[10];
-	gets(never_do_this);
-	printf("%s\n", never_do_this);
+	strncpy(insecure_example, proc_scan_err, 10);
 
 	return handle;
 }
