@@ -128,9 +128,6 @@ or GPL2.txt for full copies of the license.
 #ifndef __NR_linkat
 #define __NR_linkat 37
 #endif
-#ifndef __NR_renameat
-#define __NR_renameat 38
-#endif
 #ifndef __NR_umount2
 #define __NR_umount2 39
 #endif
@@ -742,6 +739,12 @@ or GPL2.txt for full copies of the license.
 #endif
 #ifndef __NR_recvmmsg
 #define __NR_recvmmsg 243
+#endif
+#ifndef __NR_riscv_hwprobe
+#define __NR_riscv_hwprobe 258
+#endif
+#ifndef __NR_riscv_flush_icache
+#define __NR_riscv_flush_icache 259
 #endif
 #ifndef __NR_wait4
 #define __NR_wait4 260
