@@ -337,6 +337,11 @@ if (BUILD_LIBSINSP_EXAMPLES)
 	add_subdirectory(sinsp_debug)
 endif()
 
+option(ENABLE_LIBSINSP_BENCHMARK "Enable benchmarks" ON)
+if (ENABLE_LIBSINSP_BENCHMARK)
+	add_subdirectory(benchmark)
+endif()
+
 if(NOT DEFINED SINSP_AGENT_CGROUP_MEM_PATH_ENV_VAR)
 	set(SINSP_AGENT_CGROUP_MEM_PATH_ENV_VAR "AGENT_CGROUP_MEM_PATH")
 endif()

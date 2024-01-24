@@ -23,6 +23,18 @@ limitations under the License.
 
 namespace unix_paths {
 
+namespace detail {
+//
+// Concatenate two paths and puts the result in "target".
+// If path2 is relative, the concatenation happens and the result is true.
+// If path2 is absolute, the concatenation does not happen, target contains path2 and the result is false.
+// Assumes that path1 is well formed.
+//
+std::string concatenate_paths_legacy(std::string_view path1, std::string_view path2, size_t max_len=SCAP_MAX_PATH_SIZE-1);
+std::string concatenate_paths_fs(std::string_view path1, std::string_view path2, size_t max_len=SCAP_MAX_PATH_SIZE-1);
+std::string concatenate_paths_cwalk(std::string_view path1, std::string_view path2, size_t max_len=SCAP_MAX_PATH_SIZE-1);
+}
+
 //
 // Concatenate posix-style path1 and path2 up to max_len in size, normalizing the result.
 // If path2 is absolute, the result will be equivalent to path2.
