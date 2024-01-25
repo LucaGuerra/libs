@@ -60,7 +60,7 @@ void rewind_to_parent_path(const char* targetbase, char** tc, const char** pc, u
 //                following parent directories
 //  - path: the path to copy
 //
-void copy_and_sanitize_path(char* target, char* targetbase, const char* path, char separator)
+void copy_and_sanitize_path(char* target, char* targetbase, const char *path, char separator)
 {
 	char* tc = target;
 	const char* pc = path;
@@ -149,6 +149,7 @@ void copy_and_sanitize_path(char* target, char* targetbase, const char* path, ch
 				// * if we are back at targetbase but targetbase was not empty before, it means we
 				//   fully rewinded back to targetbase and the string is now empty. Skip separator.
 				//   Example: "/foo/../a" -> "/a" BUT "foo/../a" -> "a"
+				//   -> Otherwise: "foo/../a" -> "/a"
 				//
 				if((tc > targetbase && *(tc - 1) == separator) || (tc == targetbase && !empty_base))
 				{

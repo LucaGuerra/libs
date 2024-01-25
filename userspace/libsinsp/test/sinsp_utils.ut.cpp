@@ -25,6 +25,12 @@ TEST(sinsp_utils_test, concatenate_paths)
 	// Some tests were motivated by this resource:
 	// https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
 
+	// PLEASE NOTE:
+	// * current impl does not support unicode.
+	// * current impl does not sanitize path1
+	// * current impl expects path1 to end with '/'
+	// * current impl skips path1 altogether if path2 is absolute
+
 	std::string path1, path2, res;
 
 	res = unix_paths::concatenate_paths("", "");
@@ -48,7 +54,7 @@ TEST(sinsp_utils_test, concatenate_paths)
 	path1 = "a";
 	path2 = "../";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("a..", res);
+	EXPECT_EQ("a..", res); // since the helper does not add any "/" between path1 and path2, we end up with this.
 
 	path1 = "a/";
 	path2 = "../";
@@ -63,22 +69,22 @@ TEST(sinsp_utils_test, concatenate_paths)
 	path1 = "foo/";
 	path2 = "..//a";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("a", res);
+	EXPECT_EQ("a", res); // path2 has been sanitized, plus we moved up a folder because of ".."
 
 	path1 = "/foo/";
 	path2 = "..//a";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("/a", res);
+	EXPECT_EQ("/a", res); // path2 has been sanitized, plus we moved up a folder because of ".."
 
 	path1 = "heolo";
-	path2 = "w////////////..//////.////////r.|"; // heolow/../r.| -> r.|
+	path2 = "w////////////..//////.////////r.|";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("r.|", res);
+	EXPECT_EQ("r.|", res); // since the helper does not add any "/" between path1 and path2, we end up with this.
 
 	path1 = "heolo";
 	path2 = "w/////////////..//"; // heolow/////////////..// > heolow/..// -> /
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("", res);
+	EXPECT_EQ("", res); // since the helper does not add any "/" between path1 and path2, we end up with this, ie a folder up from "heolow/"
 
 	path1 = "";
 	path2 = "./";
