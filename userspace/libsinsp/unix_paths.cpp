@@ -35,7 +35,7 @@ struct g_invalidchar
 //
 // Helper function to move a directory up in a path string
 //
-void rewind_to_parent_path(char* targetbase, char** tc, const char** pc, uint32_t delta)
+void rewind_to_parent_path(const char* targetbase, char** tc, const char** pc, uint32_t delta)
 {
 	if(*tc <= targetbase + 1)
 	{
@@ -45,7 +45,7 @@ void rewind_to_parent_path(char* targetbase, char** tc, const char** pc, uint32_
 
 	(*tc)--;
 
-	while(*((*tc) - 1) != '/' && (*tc) >= targetbase + 1)
+	while((*tc) >= targetbase + 1 && *((*tc) - 1) != '/')
 	{
 		(*tc)--;
 	}
@@ -60,11 +60,12 @@ void rewind_to_parent_path(char* targetbase, char** tc, const char** pc, uint32_
 //                following parent directories
 //  - path: the path to copy
 //
-void copy_and_sanitize_path(char* target, char* targetbase, const char* path, char separator)
+void copy_and_sanitize_path(char* target, char* targetbase, const char *path, char separator)
 {
 	char* tc = target;
 	const char* pc = path;
 	g_invalidchar ic;
+	const bool empty_base = target == targetbase;
 
 	while(true)
 	{
@@ -74,6 +75,7 @@ void copy_and_sanitize_path(char* target, char* targetbase, const char* path, ch
 
 			//
 			// If the path ends with a separator, remove it, as the OS does.
+			// Properly manage case where path is just "/".
 			//
 			if((tc > (targetbase + 1)) && (*(tc - 1) == separator))
 			{
@@ -142,9 +144,14 @@ void copy_and_sanitize_path(char* target, char* targetbase, const char* path, ch
 			else if(*pc == separator)
 			{
 				//
-				// separator, if the last char is already a separator, skip it
+				// separator:
+				// * if the last char is already a separator, skip it
+				// * if we are back at targetbase but targetbase was not empty before, it means we
+				//   fully rewinded back to targetbase and the string is now empty. Skip separator.
+				//   Example: "/foo/../a" -> "/a" BUT "foo/../a" -> "a"
+				//   -> Otherwise: "foo/../a" -> "/a"
 				//
-				if(tc > targetbase && *(tc - 1) == separator)
+				if((tc > targetbase && *(tc - 1) == separator) || (tc == targetbase && !empty_base))
 				{
 					pc++;
 				}
@@ -168,9 +175,12 @@ void copy_and_sanitize_path(char* target, char* targetbase, const char* path, ch
 	}
 }
 
-//
-// Return false if path2 is an absolute path
-//
+/*
+ * Return false if path2 is an absolute path.
+ * path1 MUST be '/' terminated.
+ * path1 is not sanitized.
+ * If path2 is absolute, we only account for it.
+ */
 static bool concatenate_paths__legacy(char* target, uint32_t targetlen, const char* path1, uint32_t len1,
 				     const char* path2, uint32_t len2)
 {
@@ -278,7 +288,7 @@ std::string detail::concatenate_paths_cwalk(std::string_view path1, std::string_
 
 std::string concatenate_paths(std::string_view path1, std::string_view path2, size_t max_len)
 {
-	return detail::concatenate_paths_cwalk(path1, path2, max_len);
+	return detail::concatenate_paths_legacy(path1, path2, max_len);
 }
 
 } // namespace unix_paths
