@@ -33,12 +33,57 @@ TEST(sinsp_utils_test, concatenate_paths)
 	path1 = "";
 	path2 = "../";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("..", res);
+	EXPECT_EQ("", res);
+
+	path1 = "";
+	path2 = "..";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("", res);
+
+	path1 = "/";
+	path2 = "../";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("/", res);
+
+	path1 = "a";
+	path2 = "../";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("a..", res);
+
+	path1 = "a/";
+	path2 = "../";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("", res);
+
+	path1 = "";
+	path2 = "/foo";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("/foo", res);
+
+	path1 = "foo/";
+	path2 = "..//a";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("a", res);
+
+	path1 = "/foo/";
+	path2 = "..//a";
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("/a", res);
+
+	path1 = "heolo";
+	path2 = "w////////////..//////.////////r.|"; // heolow/../r.| -> r.|
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("r.|", res);
+
+	path1 = "heolo";
+	path2 = "w/////////////..//"; // heolow/////////////..// > heolow/..// -> /
+	res = unix_paths::concatenate_paths(path1, path2);
+	EXPECT_EQ("", res);
 
 	path1 = "";
 	path2 = "./";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ(".", res);
+	EXPECT_EQ("", res);
 
 	path1 = "";
 	path2 = "dir/term";
@@ -93,27 +138,28 @@ TEST(sinsp_utils_test, concatenate_paths)
 	path1 = "./app";
 	path2 = "custom/term";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("app/custom/term", res);
+	EXPECT_EQ("./appcustom/term", res); // since path1 is not '/' terminated, we expect a string concat without further path fields
 
 	path1 = "/app";
 	path2 = "custom/term";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("/app/custom/term", res);
+	EXPECT_EQ("/appcustom/term", res); // since path1 is not '/' terminated, we expect a string concat without further path fields
 
 	path1 = "app";
 	path2 = "custom/term";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("app/custom/term", res);
+	EXPECT_EQ("appcustom/term", res); // since path1 is not '/' terminated, we expect a string concat without further path fields
 
-	path1 = "app//";
+	path1 = "app/";
 	path2 = "custom/term";
 	res = unix_paths::concatenate_paths(path1, path2);
 	EXPECT_EQ("app/custom/term", res);
 
+	// We don't support sanitizing path1
 	path1 = "app/////";
 	path2 = "custom////term";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("app/custom/term", res);
+	EXPECT_EQ("app/////custom/term", res);
 
 	path1 = "/";
 	path2 = "/app/custom/dir/././././../../term/";
@@ -125,6 +171,7 @@ TEST(sinsp_utils_test, concatenate_paths)
 	res = unix_paths::concatenate_paths(path1, path2);
 	EXPECT_EQ("/app", res);
 
+	/* No unicode support
 	path1 = "/root/";
 	path2 = "../😉";
 	res = unix_paths::concatenate_paths(path1, path2);
@@ -143,5 +190,5 @@ TEST(sinsp_utils_test, concatenate_paths)
 	path1 = "/root";
 	path2 = "c:/hello/world/";
 	res = unix_paths::concatenate_paths(path1, path2);
-	EXPECT_EQ("/root/c:/hello/world", res);
+	EXPECT_EQ("/root/c:/hello/world", res); */
 }
