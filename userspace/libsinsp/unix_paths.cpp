@@ -28,11 +28,6 @@ struct g_invalidchar
 {
 	bool operator()(char c) const
 	{
-		if(c < -1)
-		{
-			return true;
-		}
-
 		return !isprint((unsigned)c);
 	}
 };
@@ -261,7 +256,7 @@ std::string detail::concatenate_paths_fs(std::string_view path1, std::string_vie
 std::string detail::concatenate_paths_cwalk(std::string_view path1, std::string_view path2, size_t max_len)
 {
 	const auto size = max_len+1;
-	char result[max_len+1];
+	char result[SCAP_MAX_PATH_SIZE];
 
 	size_t complete_size;
 	if (path1.data() == nullptr || path1.size() == 0 || cwk_path_is_absolute(path2.data()))
@@ -277,7 +272,7 @@ std::string detail::concatenate_paths_cwalk(std::string_view path1, std::string_
 		return "/PATH_TOO_LONG";
 	}
 
-	return result;
+	return std::string(result);
 }
 
 
