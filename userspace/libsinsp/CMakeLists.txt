@@ -342,6 +342,8 @@ if (ENABLE_LIBSINSP_BENCHMARK)
 	add_subdirectory(benchmark)
 endif()
 
+add_subdirectory(concatenate_paths_tester)
+
 if(NOT DEFINED SINSP_AGENT_CGROUP_MEM_PATH_ENV_VAR)
 	set(SINSP_AGENT_CGROUP_MEM_PATH_ENV_VAR "AGENT_CGROUP_MEM_PATH")
 endif()
