@@ -176,9 +176,9 @@ if(NOT EMSCRIPTEN)
 	list(APPEND SINSP_PKGCONFIG_LIBRARIES "${CARES_LIB}")
 endif()
 
-if(USE_BUNDLED_VALIJSON)
-	add_dependencies(sinsp valijson)
-endif()
+# if(USE_BUNDLED_VALIJSON)
+# 	add_dependencies(sinsp valijson)
+# endif()
 
 if(USE_BUNDLED_RE2)
 	add_dependencies(sinsp re2)

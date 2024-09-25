@@ -40,6 +40,14 @@
 				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
 				"BUILD_WARNINGS_AS_ERRORS": "ON"
 			}
+		},
+		{
+			"name": "vcpkg",
+			"generator": "Unix Makefiles",
+			"binaryDir": "${sourceDir}/build",
+			"cacheVariables": {
+			  "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+			}
 		}
 	]
 }
