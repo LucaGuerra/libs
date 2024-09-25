@@ -34,7 +34,7 @@ include(zlib)
 
 if(NOT MINIMAL_BUILD)
 	if(NOT WIN32 AND NOT EMSCRIPTEN)
-		include(curl)
+		find_package(CURL REQUIRED)
 		include(cares)
 	endif() # NOT WIN32
 endif()
@@ -162,10 +162,12 @@ set_sinsp_target_properties(sinsp)
 target_link_libraries(
 	sinsp
 	PUBLIC scap
-	PRIVATE "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}"
+	# PRIVATE "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}"
+	PRIVATE "${JSONCPP_LIB}" "${RE2_LIB}"
 )
 
-set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}")
+# set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}")
+set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" "${RE2_LIB}")
 
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
@@ -229,7 +231,8 @@ endif()
 if(NOT WIN32)
 	if(NOT MINIMAL_BUILD)
 		if(NOT EMSCRIPTEN)
-			add_dependencies(sinsp openssl curl)
+			target_link_libraries(sinsp PRIVATE CURL::libcurl)
+			add_dependencies(sinsp openssl)
 		endif()
 	endif()
 

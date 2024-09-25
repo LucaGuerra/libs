@@ -38,7 +38,7 @@ if(NOT HAVE_LIBSINSP)
 	   AND NOT EMSCRIPTEN
 	)
 		include(cares)
-		include(curl)
+		# include(curl) -- removed (not sure if it was needed)
 	endif()
 	include(jsoncpp)
 	include(re2)
@@ -80,8 +80,8 @@ if(NOT HAVE_LIBSINSP)
 	   AND NOT MINIMAL_BUILD
 	   AND NOT EMSCRIPTEN
 	)
-		get_filename_component(CURL_ABSOLUTE_INCLUDE_DIR ${CURL_INCLUDE_DIRS} ABSOLUTE)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${CURL_ABSOLUTE_INCLUDE_DIR})
+		# get_filename_component(CURL_ABSOLUTE_INCLUDE_DIR ${CURL_INCLUDE_DIRS} ABSOLUTE) -- removed (not sure if it was needed)
+		# list(APPEND LIBSINSP_INCLUDE_DIRS ${CURL_ABSOLUTE_INCLUDE_DIR})
 	endif()
 
 	function(set_sinsp_target_properties target)

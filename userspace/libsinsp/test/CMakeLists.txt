@@ -18,7 +18,7 @@ if(NOT EMSCRIPTEN)
 	include(tbb)
 endif()
 if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
-	include(curl)
+	# include(curl) -- removed
 endif() # MINIMAL_BUILD
 
 include(zlib)
