@@ -21,4 +21,4 @@ target_include_directories(
 	INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
-add_dependencies(scap_engine_noop uthash)
+# add_dependencies(scap_engine_noop uthash)

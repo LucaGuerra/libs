@@ -29,42 +29,12 @@ if(NOT HAVE_LIBSINSP)
 
 	include(ExternalProject)
 	include(libscap)
-	if(NOT EMSCRIPTEN)
-		include(tbb)
-	endif()
-	if(NOT WIN32
-	   AND NOT APPLE
-	   AND NOT MINIMAL_BUILD
-	   AND NOT EMSCRIPTEN
-	)
-		include(cares)
-		include(curl)
-	endif()
-	include(jsoncpp)
-	include(valijson)
-	include(re2)
-
-	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
-		include(bs_threadpool)
-	endif()
 
 	set(LIBSINSP_INCLUDE_DIRS)
 
-	if(NOT USE_BUNDLED_TBB AND NOT EMSCRIPTEN)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${TBB_INCLUDE_DIR})
-	endif()
-
-	if(NOT USE_BUNDLED_JSONCPP)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${JSONCPP_INCLUDE})
-	endif()
-
-	if(NOT USE_BUNDLED_CURL
-	   AND NOT WIN32
-	   AND NOT APPLE
-	   AND NOT MINIMAL_BUILD
-	   AND NOT EMSCRIPTEN
-	)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${CURL_INCLUDE_DIRS})
+	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
+		find_path(BSHOSHANY_THREAD_POOL_INCLUDE_DIRS "BS_thread_pool.hpp")
+		list(APPEND LIBSINSP_INCLUDE_DIRS ${BSHOSHANY_THREAD_POOL_INCLUDE_DIRS})
 	endif()
 
 	function(set_sinsp_target_properties target)

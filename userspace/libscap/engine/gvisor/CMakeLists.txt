@@ -12,58 +12,36 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-include(protobuf)
-include(jsoncpp)
 
 find_package(Threads)
+find_package(Protobuf REQUIRED CONFIG)
+find_package(nlohmann_json CONFIG REQUIRED)
 
-set(scap_engine_gvisor_sources
-	${CMAKE_CURRENT_SOURCE_DIR}/parsers.cpp ${CMAKE_CURRENT_SOURCE_DIR}/fillers.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/gvisor.cpp ${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor_platform.cpp ${CMAKE_CURRENT_SOURCE_DIR}/runsc.cpp
+add_library(scap_engine_gvisor
+	${CMAKE_CURRENT_SOURCE_DIR}/parsers.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/fillers.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/gvisor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor_platform.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/runsc.cpp
+
+	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/common.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/container.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/sentry.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/syscall.proto
 )
 
-set(scap_engine_gvisor_generated_sources
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.pb.cc
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.pb.cc
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.pb.cc
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.cc
+target_include_directories(scap_engine_gvisor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+protobuf_generate(
+	TARGET scap_engine_gvisor
+	IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/proto"
 )
 
-set(scap_engine_gvisor_generated_headers
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/common.pb.h
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/container.pb.h
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/sentry.pb.h
-	${CMAKE_CURRENT_BINARY_DIR}/pkg/sentry/seccheck/points/syscall.pb.h
-)
-
-add_custom_command(
-	OUTPUT ${scap_engine_gvisor_generated_sources} ${scap_engine_gvisor_generated_headers}
-	COMMENT "Generate gVisor protobuf definitions"
-	DEPENDS protobuf
-	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/common.proto
-	COMMAND ${PROTOC} -I ${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=.
-			${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/common.proto
-	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/container.proto
-	COMMAND ${PROTOC} -I ${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=.
-			${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/container.proto
-	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/sentry.proto
-	COMMAND ${PROTOC} -I ${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=.
-			${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/sentry.proto
-	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/syscall.proto
-	COMMAND ${PROTOC} -I ${CMAKE_CURRENT_SOURCE_DIR}/proto --cpp_out=.
-			${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/syscall.proto
-	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_library(
-	scap_engine_gvisor ${scap_engine_gvisor_sources} ${scap_engine_gvisor_generated_sources}
-)
-
-add_dependencies(scap_engine_gvisor uthash jsoncpp)
+# add_dependencies(scap_engine_gvisor uthash)
 target_link_libraries(
-	scap_engine_gvisor PUBLIC scap_platform_util scap_error ${CMAKE_THREAD_LIBS_INIT}
-							  ${PROTOBUF_LIB} ${JSONCPP_LIB}
+	scap_engine_gvisor PRIVATE scap scap_platform_util scap_error protobuf::libprotobuf nlohmann_json::nlohmann_json
+								${CMAKE_THREAD_LIBS_INIT}
 )
 
 target_include_directories(scap_engine_gvisor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

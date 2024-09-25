@@ -46,7 +46,7 @@ limitations under the License.
 #include <sstream>
 #include <string>
 
-#include <json/json.h>
+#include <nlohmann/json.hpp>
 
 #include <libscap/engine/gvisor/gvisor.h>
 #include <libscap/engine/gvisor/parsers.h>
@@ -2100,15 +2100,13 @@ std::string parse_container_id(scap_const_sized_buffer gvisor_buf) {
 procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	procfs_result res;
 	memset(&res.tinfo, 0, sizeof(res.tinfo));
-	Json::Value root;
-	Json::CharReaderBuilder builder;
-	std::string err;
-	const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
 
-	bool json_parse = reader->parse(input.c_str(), input.c_str() + input.size(), &root, &err);
-	if(!json_parse) {
+	nlohmann::json root;
+	try {
+		root = nlohmann::json::parse(input);
+	} catch(const nlohmann::json::parse_error &e) {
 		res.status = SCAP_FAILURE;
-		res.error = "Malformed json string: cannot parse procfs entry: " + err;
+		res.error = "Malformed json string: cannot parse procfs entry: " + std::string(e.what());
 		return res;
 	}
 
@@ -2116,7 +2114,6 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	// Initialize res, so that in case of error we can
 	// directly return it
 	//
-
 	res.status = SCAP_FAILURE;
 	res.error = "Missing json field or wrong type: cannot parse procfs entry";
 	scap_threadinfo &tinfo = res.tinfo;
@@ -2125,62 +2122,62 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	// Fill threadinfo
 	//
 
-	if(!root.isMember("status")) {
+	if(!root.contains("status")) {
 		return res;
 	}
-	Json::Value &status = root["status"];
+	const auto &status = root["status"];
 
-	if(!root.isMember("stat")) {
+	if(!root.contains("stat")) {
 		return res;
 	}
-	Json::Value &stat = root["stat"];
+	const auto &stat = root["stat"];
 
 	// tid
-	if(!status.isMember("pid") || !status["pid"].isUInt64()) {
+	if(!status.contains("pid") || !status["pid"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.tid = generate_tid_field(status["pid"].asUInt64(), sandbox_id);
+	tinfo.tid = generate_tid_field(status["pid"].get<uint64_t>(), sandbox_id);
 
 	// pid
-	if(!stat.isMember("pgid") || !stat["pgid"].isUInt64()) {
+	if(!stat.contains("pgid") || !stat["pgid"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.pid = generate_tid_field(stat["pgid"].asUInt64(), sandbox_id);
+	tinfo.pid = generate_tid_field(stat["pgid"].get<uint64_t>(), sandbox_id);
 
 	// sid
-	if(!stat.isMember("sid") || !stat["sid"].isUInt64()) {
+	if(!stat.contains("sid") || !stat["sid"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.sid = stat["sid"].asUInt64();
+	tinfo.sid = stat["sid"].get<uint64_t>();
 
 	// vpgid
-	tinfo.vpgid = stat["pgid"].asUInt64();
+	tinfo.vpgid = stat["pgid"].get<uint64_t>();
 
 	// comm
-	if(!status.isMember("comm") || !status["comm"].isString()) {
+	if(!status.contains("comm") || !status["comm"].is_string()) {
 		return res;
 	}
-	strlcpy(tinfo.comm, status["comm"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+	strlcpy(tinfo.comm, status["comm"].get<std::string>().c_str(), SCAP_MAX_PATH_SIZE + 1);
 
 	// exe
-	if(!root.isMember("args") || !root["args"].isArray() || !root["args"][0].isString()) {
+	if(!root.contains("args") || !root["args"].is_array() || !root["args"][0].is_string()) {
 		return res;
 	}
-	strlcpy(tinfo.exe, root["args"][0].asCString(), SCAP_MAX_PATH_SIZE + 1);
+	strlcpy(tinfo.exe, root["args"][0].get<std::string>().c_str(), SCAP_MAX_PATH_SIZE + 1);
 
 	// exepath
-	if(!root.isMember("exe") || !root["exe"].isString()) {
+	if(!root.contains("exe") || !root["exe"].is_string()) {
 		return res;
 	}
-	strlcpy(tinfo.exepath, root["exe"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+	strlcpy(tinfo.exepath, root["exe"].get<std::string>().c_str(), SCAP_MAX_PATH_SIZE + 1);
 
 	// args
-	if(!root.isMember("args") || !root["args"].isArray()) {
+	if(!root.contains("args") || !root["args"].is_array()) {
 		return res;
 	}
 	std::string args;
-	for(Json::Value::ArrayIndex i = 0; i < root["args"].size(); i++) {
-		args += root["args"][i].asString();
+	for(const auto &arg : root["args"]) {
+		args += arg.get<std::string>();
 		args.push_back('\0');
 	}
 	size_t args_size = args.size() > SCAP_MAX_ARGS_SIZE ? SCAP_MAX_ARGS_SIZE : args.size();
@@ -2189,12 +2186,12 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	tinfo.args[SCAP_MAX_ARGS_SIZE] = '\0';
 
 	// env
-	if(!root.isMember("env") || !root["env"].isArray()) {
+	if(!root.contains("env") || !root["env"].is_array()) {
 		return res;
 	}
 	std::string env;
-	for(Json::Value::ArrayIndex i = 0; i < root["env"].size(); i++) {
-		env += root["env"][i].asString();
+	for(const auto &e : root["env"]) {
+		env += e.get<std::string>();
 		env.push_back('\0');
 	}
 	size_t env_size = env.size() > SCAP_MAX_ENV_SIZE ? SCAP_MAX_ENV_SIZE : env.size();
@@ -2203,42 +2200,42 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	tinfo.env[SCAP_MAX_ENV_SIZE] = '\0';
 
 	// cwd
-	if(!root.isMember("cwd") || !root["cwd"].isString()) {
+	if(!root.contains("cwd") || !root["cwd"].is_string()) {
 		return res;
 	}
-	strlcpy(tinfo.cwd, root["cwd"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+	strlcpy(tinfo.cwd, root["cwd"].get<std::string>().c_str(), SCAP_MAX_PATH_SIZE + 1);
 
 	// uid
-	if(!status.isMember("uid") || !status["uid"].isMember("effective") ||
-	   !status["uid"]["effective"].isUInt64()) {
+	if(!status.contains("uid") || !status["uid"].contains("effective") ||
+	   !status["uid"]["effective"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.uid = status["uid"]["effective"].asUInt64();
+	tinfo.uid = status["uid"]["effective"].get<uint64_t>();
 
 	// gid
-	if(!status.isMember("gid") || !status["gid"].isMember("effective") ||
-	   !status["gid"]["effective"].isUInt64()) {
+	if(!status.contains("gid") || !status["gid"].contains("effective") ||
+	   !status["gid"]["effective"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.gid = status["gid"]["effective"].asUInt64();
+	tinfo.gid = status["gid"]["effective"].get<uint64_t>();
 
 	// vtid
-	tinfo.vtid = status["pid"].asUInt64();
+	tinfo.vtid = status["pid"].get<uint64_t>();
 
 	// vpid
-	tinfo.vpid = status["pgid"].asUInt64();
+	tinfo.vpid = stat["pgid"].get<uint64_t>();
 
 	// root
-	if(!root.isMember("root") || !root["root"].isString()) {
+	if(!root.contains("root") || !root["root"].is_string()) {
 		return res;
 	}
-	strlcpy(tinfo.root, root["root"].asCString(), SCAP_MAX_PATH_SIZE + 1);
+	strlcpy(tinfo.root, root["root"].get<std::string>().c_str(), SCAP_MAX_PATH_SIZE + 1);
 
 	// clone_ts
-	if(!root.isMember("clone_ts") || !root["clone_ts"].isUInt64()) {
+	if(!root.contains("clone_ts") || !root["clone_ts"].is_number_unsigned()) {
 		return res;
 	}
-	tinfo.clone_ts = root["clone_ts"].asUInt64();
+	tinfo.clone_ts = root["clone_ts"].get<uint64_t>();
 
 	// fdinfos
 
@@ -2246,31 +2243,32 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	res.error = "Error parsing fdlist";
 
 	std::vector<scap_fdinfo> &fds = res.fdinfos;
-	if(!root.isMember("fdlist") || !root["fdlist"].isArray()) {
+	if(!root.contains("fdlist") || !root["fdlist"].is_array()) {
 		return res;
 	}
-	for(Json::Value::ArrayIndex i = 0; i != root["fdlist"].size(); i++) {
-		Json::Value &entry = root["fdlist"][i];
+	for(const auto &entry : root["fdlist"]) {
 		scap_fdinfo fdinfo;
 
-		if(!entry.isMember("number") || !entry["number"].isUInt64()) {
+		if(!entry.contains("number") || !entry["number"].is_number_unsigned()) {
 			return res;
 		}
-		fdinfo.fd = entry["number"].asUInt64();
+		fdinfo.fd = entry["number"].get<uint64_t>();
 
-		if(!entry.isMember("mode") || !entry["mode"].isUInt64()) {
-			return res;
-		}
-
-		if(!entry.isMember("path") || !entry["path"].isString()) {
+		if(!entry.contains("mode") || !entry["mode"].is_number_unsigned()) {
 			return res;
 		}
 
-		uint64_t mode = entry["mode"].asUInt64();
+		if(!entry.contains("path") || !entry["path"].is_string()) {
+			return res;
+		}
+
+		uint64_t mode = entry["mode"].get<uint64_t>();
 
 		if(S_ISREG(mode)) {
 			fdinfo.type = SCAP_FD_FILE_V2;
-			strlcpy(fdinfo.info.regularinfo.fname, entry["path"].asCString(), SCAP_MAX_PATH_SIZE);
+			strlcpy(fdinfo.info.regularinfo.fname,
+			        entry["path"].get<std::string>().c_str(),
+			        SCAP_MAX_PATH_SIZE);
 		} else {
 			continue;
 		}
@@ -2283,56 +2281,54 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id) {
 	return res;
 }
 
-config_result parse_config(std::string config) {
+config_result parse_config(const std::string &config) {
 	config_result res;
 	res.socket_path = "";
 	res.error = "";
 	res.status = SCAP_FAILURE;
 
-	std::string err;
-	Json::Value root;
-	Json::CharReaderBuilder builder;
-	const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-
-	bool json_parse = reader->parse(config.c_str(), config.c_str() + config.size(), &root, &err);
-	if(!json_parse) {
-		res.error = "Could not parse configuration file contents: " + err;
+	nlohmann::json root;
+	try {
+		root = nlohmann::json::parse(config);
+	} catch(const nlohmann::json::parse_error &e) {
+		res.error = "Could not parse gVisor configuration file contents: " + std::string(e.what());
 		return res;
 	}
 
-	if(!root.isMember("trace_session")) {
+	if(!root.contains("trace_session")) {
 		res.error = "Could not find trace_session entry in configuration";
 		return res;
 	}
-	Json::Value &trace_session = root["trace_session"];
+	const auto &trace_session = root["trace_session"];
 
-	if(!trace_session.isMember("sinks") || !trace_session["sinks"].isArray()) {
+	if(!trace_session.contains("sinks") || !trace_session["sinks"].is_array()) {
 		res.error = "Could not find trace_session -> sinks array in configuration";
 		return res;
 	}
 
-	if(trace_session["sinks"].size() == 0) {
+	if(trace_session["sinks"].empty()) {
 		res.error = "trace_session -> sinks array is empty";
 		return res;
 	}
 
 	// We don't know how to distinguish between sinks in case there is more than one
 	// we're taking the first for now but this can be tweaked if necessary.
-	Json::Value &sink = trace_session["sinks"][0];
+	const auto &sink = trace_session["sinks"][0];
 
-	if(!sink.isMember("config")) {
+	if(!sink.contains("config")) {
 		res.error = "Could not find config in sink item";
 		return res;
 	}
-	Json::Value &sink_config = sink["config"];
+	const auto &sink_config = sink["config"];
 
-	if(!sink_config.isMember("endpoint") || !sink_config["endpoint"].isString()) {
+	if(!sink_config.contains("endpoint") || !sink_config["endpoint"].is_string()) {
 		res.error = "Could not find endpoint in sink configuration";
 		return res;
 	}
 
-	res.socket_path = sink_config["endpoint"].asString();
+	res.socket_path = sink_config["endpoint"].get<std::string>();
 	res.status = SCAP_SUCCESS;
+
 	return res;
 }
 

@@ -23,12 +23,9 @@ if(NOT HAVE_LIBSCAP)
 	option(USE_BUNDLED_DEPS "Enable bundled dependencies instead of using the system ones" ON)
 
 	include(GNUInstallDirs)
-
 	include(ExternalProject)
-
-	include(uthash)
-
 	include(CheckSymbolExists)
+
 	check_symbol_exists(strlcpy "string.h" HAVE_STRLCPY)
 	check_symbol_exists(strlcat "string.h" HAVE_STRLCAT)
 

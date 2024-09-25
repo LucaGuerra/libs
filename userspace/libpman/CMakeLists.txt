@@ -34,14 +34,13 @@ target_include_directories(
 	PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 			$<BUILD_INTERFACE:${LIBS_DIR}> # ppm_enum and tables
 			$<BUILD_INTERFACE:${LIBS_DIR}/userspace> # scap-stats struct
-			${ZLIB_INCLUDE}
 			${LIBBPF_INCLUDE}
 			${MODERN_BPF_SKEL_DIR}
 			${LIBELF_INCLUDE}
 )
 
 target_link_libraries(
-	pman PUBLIC scap_event_schema scap_platform ${LIBBPF_LIB} ${LIBELF_LIB} ${ZLIB_LIB}
+	pman PUBLIC scap_event_schema scap_platform ${LIBBPF_LIB} ${LIBELF_LIB} ZLIB::ZLIB
 )
 
 if(TARGET ProbeSkeleton)
