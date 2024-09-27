@@ -32,14 +32,7 @@ if(NOT HAVE_LIBSINSP)
 	if(NOT EMSCRIPTEN)
 		include(tbb)
 	endif()
-	if(NOT WIN32
-	   AND NOT APPLE
-	   AND NOT MINIMAL_BUILD
-	   AND NOT EMSCRIPTEN
-	)
-		include(cares)
-		# include(curl) -- removed (not sure if it was needed)
-	endif()
+
 	include(jsoncpp)
 
 	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
@@ -61,23 +54,6 @@ if(NOT HAVE_LIBSINSP)
 	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
 		get_filename_component(BS_THREADPOOL_ABSOLUTE_INCLUDE_DIR ${BS_THREADPOOL_INCLUDE} ABSOLUTE)
 		list(APPEND LIBSINSP_INCLUDE_DIRS ${BS_THREADPOOL_ABSOLUTE_INCLUDE_DIR})
-	endif()
-
-	if(NOT MINIMAL_BUILD
-	   AND NOT EMSCRIPTEN
-	   AND NOT APPLE
-	)
-		get_filename_component(CARES_ABSOLUTE_INCLUDE_DIR ${CARES_INCLUDE} ABSOLUTE)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${CARES_ABSOLUTE_INCLUDE_DIR})
-	endif()
-
-	if(NOT WIN32
-	   AND NOT APPLE
-	   AND NOT MINIMAL_BUILD
-	   AND NOT EMSCRIPTEN
-	)
-		# get_filename_component(CURL_ABSOLUTE_INCLUDE_DIR ${CURL_INCLUDE_DIRS} ABSOLUTE) -- removed (not sure if it was needed)
-		# list(APPEND LIBSINSP_INCLUDE_DIRS ${CURL_ABSOLUTE_INCLUDE_DIR})
 	endif()
 
 	function(set_sinsp_target_properties target)

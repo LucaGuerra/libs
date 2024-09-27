@@ -37,7 +37,6 @@ include(zlib)
 if(NOT MINIMAL_BUILD)
 	if(NOT WIN32 AND NOT EMSCRIPTEN)
 		find_package(CURL REQUIRED)
-		include(cares)
 	endif() # NOT WIN32
 endif()
 
@@ -164,7 +163,8 @@ set_sinsp_target_properties(sinsp)
 target_link_libraries(
 	sinsp
 	PUBLIC scap
-	PRIVATE re2 "${JSONCPP_LIB}"
+	# PRIVATE re2 "${JSONCPP_LIB}"
+	PRIVATE "${JSONCPP_LIB}"
 )
 
 # set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}")
@@ -173,10 +173,8 @@ set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" re2)
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
 		sinsp
-		INTERFACE "${CARES_LIB}"
 		PRIVATE "${TBB_LIB}"
 	)
-	list(APPEND SINSP_PKGCONFIG_LIBRARIES "${CARES_LIB}")
 endif()
 
 if(USE_BUNDLED_JSONCPP)
@@ -200,7 +198,6 @@ if(NOT WIN32)
 
 	if(NOT APPLE)
 		if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
-			include(cares)
 			find_package(Protobuf CONFIG REQUIRED)
 			find_package(gRPC CONFIG REQUIRED)
 
@@ -210,7 +207,7 @@ if(NOT WIN32)
 			)
 
 			target_link_libraries(
-				sinsp INTERFACE protobuf::libprotobuf gRPC::grpc++ "${CARES_LIB}"
+				sinsp INTERFACE protobuf::libprotobuf gRPC::grpc++
 			)
 
 			set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -243,7 +240,6 @@ if(NOT WIN32)
 				# "${GPR_LIB}"
 				protobuf::libprotobuf
 				gRPC::grpc++
-				"${CARES_LIB}"
 			)
 
 			if(NOT MUSL_OPTIMIZED_BUILD)
