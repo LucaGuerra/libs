@@ -83,7 +83,7 @@ if(BUILD_LIBSCAP_MODERN_BPF)
 endif()
 
 if(BUILD_LIBSCAP_GVISOR)
-	include(protobuf)
+	# include(protobuf)
 	file(GLOB_RECURSE GVISOR_TEST_SUITE
 		 "${CMAKE_CURRENT_SOURCE_DIR}/test_suites/engines/gvisor/*.cpp"
 	)

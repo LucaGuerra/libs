@@ -41,7 +41,6 @@ if(NOT HAVE_LIBSINSP)
 		# include(curl) -- removed (not sure if it was needed)
 	endif()
 	include(jsoncpp)
-	include(re2)
 
 	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
 		include(bs_threadpool)
@@ -58,9 +57,6 @@ if(NOT HAVE_LIBSINSP)
 
 	get_filename_component(JSONCPP_ABSOLUTE_INCLUDE_DIR ${JSONCPP_INCLUDE} ABSOLUTE)
 	list(APPEND LIBSINSP_INCLUDE_DIRS ${JSONCPP_ABSOLUTE_INCLUDE_DIR})
-
-	get_filename_component(RE2_ABSOLUTE_INCLUDE_DIR ${RE2_INCLUDE} ABSOLUTE)
-	list(APPEND LIBSINSP_INCLUDE_DIRS ${RE2_ABSOLUTE_INCLUDE_DIR})
 
 	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
 		get_filename_component(BS_THREADPOOL_ABSOLUTE_INCLUDE_DIR ${BS_THREADPOOL_INCLUDE} ABSOLUTE)

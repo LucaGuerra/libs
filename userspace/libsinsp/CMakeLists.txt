@@ -29,6 +29,8 @@ endif()
 
 include(ExternalProject)
 
+find_package(re2 REQUIRED CONFIG)
+
 include(jsoncpp)
 include(zlib)
 
@@ -39,13 +41,13 @@ if(NOT MINIMAL_BUILD)
 	endif() # NOT WIN32
 endif()
 
-if(NOT WIN32 AND NOT APPLE)
-	if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
-		include(grpc)
-		include(protobuf)
-		include(openssl)
-	endif() # NOT MINIMAL_BUILD
-endif()
+# if(NOT WIN32 AND NOT APPLE)
+# 	if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
+# 		find_package(grpc REQUIRED CONFIG)
+# 		find_package(Protobuf REQUIRED CONFIG)
+# 		include_directories(${PROTOBUF_INCLUDE_DIRS})
+# 	endif() # NOT MINIMAL_BUILD
+# endif()
 
 if(NOT EMSCRIPTEN)
 	include(tbb)
@@ -149,7 +151,7 @@ endif()
 
 target_include_directories(
 	sinsp
-	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<BUILD_INTERFACE:${LIBS_DIR}/userspace>
+	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<BUILD_INTERFACE:${LIBS_DIR}/userspace> $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 		   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/${LIBS_PACKAGE_NAME}>
 )
 
@@ -162,12 +164,11 @@ set_sinsp_target_properties(sinsp)
 target_link_libraries(
 	sinsp
 	PUBLIC scap
-	# PRIVATE "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}"
-	PRIVATE "${JSONCPP_LIB}" "${RE2_LIB}"
+	PRIVATE re2 "${JSONCPP_LIB}"
 )
 
 # set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}")
-set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" "${RE2_LIB}")
+set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" re2)
 
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
@@ -178,14 +179,6 @@ if(NOT EMSCRIPTEN)
 	list(APPEND SINSP_PKGCONFIG_LIBRARIES "${CARES_LIB}")
 endif()
 
-# if(USE_BUNDLED_VALIJSON)
-# 	add_dependencies(sinsp valijson)
-# endif()
-
-if(USE_BUNDLED_RE2)
-	add_dependencies(sinsp re2)
-endif()
-
 if(USE_BUNDLED_JSONCPP)
 	add_dependencies(sinsp jsoncpp)
 endif()
@@ -193,36 +186,6 @@ endif()
 if(ENABLE_THREAD_POOL AND USE_BUNDLED_BS_THREADPOOL)
 	add_dependencies(sinsp bs_threadpool)
 endif()
-
-function(prepare_cri_grpc api_version)
-	configure_file(
-		${CMAKE_CURRENT_SOURCE_DIR}/cri-${api_version}.proto
-		${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto COPYONLY
-	)
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.cc
-			   ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.h
-			   ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.cc
-			   ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.h
-		COMMENT "Generate CRI grpc code for API version ${api_version}"
-		DEPENDS
-		COMMAND ${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --cpp_out=.
-				${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto
-		COMMAND
-			${PROTOC} -I ${CMAKE_CURRENT_BINARY_DIR} --grpc_out=.
-			--plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-			${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.proto
-		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-	)
-	add_library(
-		cri_${api_version} STATIC ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.pb.cc
-								  ${CMAKE_CURRENT_BINARY_DIR}/cri-${api_version}.grpc.pb.cc
-	)
-	target_include_directories(
-		cri_${api_version} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-	)
-	add_dependencies(cri_${api_version} grpc)
-endfunction()
 
 if(NOT EMSCRIPTEN)
 	add_dependencies(sinsp tbb)
@@ -232,31 +195,54 @@ if(NOT WIN32)
 	if(NOT MINIMAL_BUILD)
 		if(NOT EMSCRIPTEN)
 			target_link_libraries(sinsp PRIVATE CURL::libcurl)
-			add_dependencies(sinsp openssl)
 		endif()
 	endif()
 
 	if(NOT APPLE)
 		if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
-			include(protobuf)
 			include(cares)
-			prepare_cri_grpc(v1alpha2)
-			prepare_cri_grpc(v1)
+			find_package(Protobuf CONFIG REQUIRED)
+			find_package(gRPC CONFIG REQUIRED)
+
+			target_sources(sinsp PRIVATE 
+				"${CMAKE_CURRENT_SOURCE_DIR}/cri-v1alpha2.proto"
+				"${CMAKE_CURRENT_SOURCE_DIR}/cri-v1.proto"
+			)
 
 			target_link_libraries(
-				sinsp
-				PRIVATE cri_v1alpha2 cri_v1
-				INTERFACE "${GRPC_LIBRARIES}" "${GRPCPP_LIB}" "${GRPC_LIB}" "${GPR_LIB}"
-						  "${PROTOBUF_LIB}" "${CARES_LIB}"
+				sinsp INTERFACE protobuf::libprotobuf gRPC::grpc++ "${CARES_LIB}"
 			)
+
+			set(PROTO_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+			set(PROTO_IMPORT_DIRS "${CMAKE_CURRENT_LIST_DIR}")
+
+			target_include_directories(sinsp PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+
+			protobuf_generate(
+				TARGET sinsp
+				IMPORT_DIRS ${PROTO_IMPORT_DIRS}
+				PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
+			)
+
+			protobuf_generate(
+				TARGET sinsp
+				LANGUAGE grpc
+				GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+				PLUGIN "protoc-gen-grpc=\$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+				IMPORT_DIRS ${PROTO_IMPORT_DIRS}
+				PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
+			)
+
 			list(
 				APPEND
 				SINSP_PKGCONFIG_LIBRARIES
-				"${GRPC_LIBRARIES}"
-				"${GRPCPP_LIB}"
-				"${GRPC_LIB}"
-				"${GPR_LIB}"
-				"${PROTOBUF_LIB}"
+				# removed the stuff below but I don't know how it works
+				# "${GRPC_LIBRARIES}"
+				# "${GRPCPP_LIB}"
+				# "${GRPC_LIB}"
+				# "${GPR_LIB}"
+				protobuf::libprotobuf
+				gRPC::grpc++
 				"${CARES_LIB}"
 			)
 
@@ -277,8 +263,8 @@ if(NOT WIN32)
 		endif() # NOT MINIMAL_BUILD
 	endif() # NOT APPLE
 
-	target_link_libraries(sinsp INTERFACE "${OPENSSL_LIBRARIES}")
-	list(APPEND SINSP_PKGCONFIG_LIBRARIES "${OPENSSL_LIBRARIES}")
+	# target_link_libraries(sinsp INTERFACE "${OPENSSL_LIBRARIES}")
+	# list(APPEND SINSP_PKGCONFIG_LIBRARIES "${OPENSSL_LIBRARIES}")
 
 	target_link_libraries(sinsp INTERFACE dl pthread)
 	list(APPEND SINSP_PKGCONFIG_LIBRARIES dl pthread)
