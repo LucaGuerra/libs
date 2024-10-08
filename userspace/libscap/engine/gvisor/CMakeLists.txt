@@ -19,34 +19,29 @@ include(jsoncpp)
 find_package(Threads)
 find_package(Protobuf REQUIRED CONFIG)
 
-set(scap_engine_gvisor_sources
-	${CMAKE_CURRENT_SOURCE_DIR}/parsers.cpp ${CMAKE_CURRENT_SOURCE_DIR}/fillers.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/gvisor.cpp ${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor_platform.cpp ${CMAKE_CURRENT_SOURCE_DIR}/runsc.cpp
-)
+if(USE_BUNDLED_JSONCPP)
+	add_dependencies(scap jsoncpp)
+endif()
 
-set(scap_engine_gvisor_proto
+add_library(scap_engine_gvisor
+	${CMAKE_CURRENT_SOURCE_DIR}/parsers.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/fillers.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/gvisor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/scap_gvisor_platform.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/runsc.cpp
+
 	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/common.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/container.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/sentry.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/proto/pkg/sentry/seccheck/points/syscall.proto
 )
 
-if(USE_BUNDLED_JSONCPP)
-	add_dependencies(scap jsoncpp)
-endif()
-
-add_library(
-	scap_engine_gvisor ${scap_engine_gvisor_sources} ${scap_engine_gvisor_generated_sources} ${scap_engine_gvisor_proto}
-)
-
-set(PROTO_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(scap_engine_gvisor PUBLIC "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>")
+target_include_directories(scap_engine_gvisor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 protobuf_generate(
 	TARGET scap_engine_gvisor
 	IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/proto"
-	PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
 )
 
 add_dependencies(scap_engine_gvisor uthash)
