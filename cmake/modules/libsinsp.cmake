@@ -41,6 +41,7 @@ if(NOT HAVE_LIBSINSP)
 		include(curl)
 	endif()
 	include(jsoncpp)
+	include(njson)
 	include(valijson)
 	include(re2)
 

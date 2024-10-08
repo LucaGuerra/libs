@@ -46,362 +46,364 @@ limitations under the License.
  * Many lists in the mock example JSONs were truncated and are not complete
  */
 
-std::string container_info_json_crio = R"({
+std::string container_info_json_crio = R"(
+{
     "sandboxID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
     "pid": 1835083,
     "runtimeSpec": {
-      "ociVersion": "1.0.2-dev",
-      "process": {
-        "user": {
-          "uid": 0,
-          "gid": 0,
-          "additionalGids": [
-            0
-          ]
+        "ociVersion": "1.0.2-dev",
+        "process": {
+            "user": {
+                "uid": 0,
+                "gid": 0,
+                "additionalGids": [
+                    0
+                ]
+            },
+            "args": [
+                "docker-entrypoint.sh",
+                "docker-entrypoint.sh",
+                "redis-server"
+            ],
+            "env": [
+                "HOSTNAME=crictl_host"
+            ],
+            "cwd": "/data",
+            "capabilities": {
+                "bounding": [
+                    "CAP_SYS_ADMIN",
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "effective": [
+                    "CAP_SYS_ADMIN",
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "inheritable": [
+                    "CAP_SYS_ADMIN",
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "permitted": [
+                    "CAP_SYS_ADMIN",
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ]
+            },
+            "oomScoreAdj": 30
         },
-        "args": [
-          "docker-entrypoint.sh",
-          "docker-entrypoint.sh",
-          "redis-server"
-        ],
-        "env": [
-          "HOSTNAME=crictl_host"
-        ],
-        "cwd": "/data",
-        "capabilities": {
-          "bounding": [
-            "CAP_SYS_ADMIN",
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "effective": [
-            "CAP_SYS_ADMIN",
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "inheritable": [
-            "CAP_SYS_ADMIN",
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "permitted": [
-            "CAP_SYS_ADMIN",
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ]
+        "root": {
+            "path": "/var/lib/containers/storage/overlay/452374ade3f42caaea412ed8d221100864d3282e29acde3279db72f6d2468a67/merged"
         },
-        "oomScoreAdj": 30
-      },
-      "root": {
-        "path": "/var/lib/containers/storage/overlay/452374ade3f42caaea412ed8d221100864d3282e29acde3279db72f6d2468a67/merged"
-      },
-      "hostname": "crictl_host",
-      "mounts": [
-        {
-          "destination": "/dev/pts",
-          "type": "devpts",
-          "source": "devpts",
-          "options": [
-            "nosuid",
-            "noexec",
-            "newinstance",
-            "ptmxmode=0666",
-            "mode=0620",
-            "gid=5"
-          ]
+        "hostname": "crictl_host",
+        "mounts": [
+            {
+                "destination": "/dev/pts",
+                "type": "devpts",
+                "source": "devpts",
+                "options": [
+                    "nosuid",
+                    "noexec",
+                    "newinstance",
+                    "ptmxmode=0666",
+                    "mode=0620",
+                    "gid=5"
+                ]
+            }
+        ],
+        "annotations": {
+            "io.kubernetes.cri-o.ImageName": "quay.io/crio/redis:alpine",
+            "io.kubernetes.cri-o.Stdin": "false",
+            "io.kubernetes.cri-o.StdinOnce": "false",
+            "io.kubernetes.cri-o.Created": "2023-12-12T04:10:25.992573978Z",
+            "io.kubernetes.cri-o.Volumes": "[]",
+            "io.kubernetes.cri-o.SandboxID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
+            "io.kubernetes.cri-o.ResolvPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/resolv.conf",
+            "io.container.manager": "cri-o",
+            "io.kubernetes.cri-o.LogPath": "/var/log/crio/pods/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad.log",
+            "pod": "podsandbox1",
+            "tier": "backend",
+            "org.systemd.property.After": "['crio.service']",
+            "io.kubernetes.cri-o.IP.0": "10.244.0.3",
+            "org.systemd.property.DefaultDependencies": "true",
+            "io.kubernetes.cri-o.Image": "quay.io/crio/redis:alpine",
+            "io.kubernetes.cri-o.ImageRef": "98bd7cfc43b8ef0ff130465e3d5427c0771002c2f35a6a9b62cb2d04602bed0a",
+            "io.kubernetes.cri-o.MountPoint": "/var/lib/containers/storage/overlay/452374ade3f42caaea412ed8d221100864d3282e29acde3279db72f6d2468a67/merged",
+            "io.kubernetes.cri-o.Labels": "{\"tier\":\"backend\"}",
+            "io.kubernetes.cri-o.Annotations": "{\"pod\":\"podsandbox1\"}",
+            "io.kubernetes.cri-o.Metadata": "{\"name\":\"podsandbox1-redis\"}",
+            "com.example.test": "sandbox annotation",
+            "security.alpha.kubernetes.io/seccomp/pod": "unconfined",
+            "owner": "hmeng",
+            "io.kubernetes.cri-o.ContainerID": "49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad",
+            "io.kubernetes.cri-o.ContainerType": "container",
+            "io.kubernetes.cri-o.Name": "k8s_podsandbox1-redis_podsandbox1_redhat.test.crio_redhat-test-crio_0",
+            "io.kubernetes.cri-o.SandboxName": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
+            "io.kubernetes.cri-o.TTY": "false",
+            "io.kubernetes.cri-o.SeccompProfilePath": "",
+            "org.systemd.property.CollectMode": "'inactive-or-failed'"
+        },
+        "linux": {
+            "resources": {
+                "devices": [
+                    {
+                        "allow": false,
+                        "access": "rwm"
+                    }
+                ],
+                "memory": {
+                    "limit": 209715200,
+                    "swap": 209715200
+                },
+                "cpu": {
+                    "shares": 512,
+                    "quota": 20000,
+                    "period": 10000,
+                    "cpus": "0",
+                    "mems": "0"
+                },
+                "pids": {
+                    "limit": 0
+                }
+            },
+            "cgroupsPath": "pod_123-456.slice:crio:49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad",
+            "namespaces": [
+                {
+                    "type": "pid"
+                }
+            ],
+            "seccomp": {
+                "defaultAction": "SCMP_ACT_ERRNO",
+                "defaultErrnoRet": 38,
+                "architectures": [
+                    "SCMP_ARCH_X86_64"
+                ],
+                "syscalls": [
+                    {
+                        "names": [
+                            "unshare"
+                        ],
+                        "action": "SCMP_ACT_ALLOW"
+                    }
+                ]
+            },
+            "maskedPaths": [
+                "/proc/acpi"
+            ],
+            "readonlyPaths": [
+                "/proc/asound"
+            ]
         }
-      ],
-      "annotations": {
-        "io.kubernetes.cri-o.ImageName": "quay.io/crio/redis:alpine",
-        "io.kubernetes.cri-o.Stdin": "false",
-        "io.kubernetes.cri-o.StdinOnce": "false",
-        "io.kubernetes.cri-o.Created": "2023-12-12T04:10:25.992573978Z",
-        "io.kubernetes.cri-o.Volumes": "[]",
-        "io.kubernetes.cri-o.SandboxID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
-        "io.kubernetes.cri-o.ResolvPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/resolv.conf",
-        "io.container.manager": "cri-o",
-        "io.kubernetes.cri-o.LogPath": "/var/log/crio/pods/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad.log",
-        "pod": "podsandbox1",
-        "tier": "backend",
-        "org.systemd.property.After": "['crio.service']",
-        "io.kubernetes.cri-o.IP.0": "10.244.0.3",
-        "org.systemd.property.DefaultDependencies": "true",
-        "io.kubernetes.cri-o.Image": "quay.io/crio/redis:alpine",
-        "io.kubernetes.cri-o.ImageRef": "98bd7cfc43b8ef0ff130465e3d5427c0771002c2f35a6a9b62cb2d04602bed0a",
-        "io.kubernetes.cri-o.MountPoint": "/var/lib/containers/storage/overlay/452374ade3f42caaea412ed8d221100864d3282e29acde3279db72f6d2468a67/merged",
-        "io.kubernetes.cri-o.Labels": "{\"tier\":\"backend\"}",
-        "io.kubernetes.cri-o.Annotations": "{\"pod\":\"podsandbox1\"}",
-        "io.kubernetes.cri-o.Metadata": "{\"name\":\"podsandbox1-redis\"}",
-        "com.example.test": "sandbox annotation",
-        "security.alpha.kubernetes.io/seccomp/pod": "unconfined",
-        "owner": "hmeng",
-        "io.kubernetes.cri-o.ContainerID": "49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad",
-        "io.kubernetes.cri-o.ContainerType": "container",
-        "io.kubernetes.cri-o.Name": "k8s_podsandbox1-redis_podsandbox1_redhat.test.crio_redhat-test-crio_0",
-        "io.kubernetes.cri-o.SandboxName": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
-        "io.kubernetes.cri-o.TTY": "false",
-        "io.kubernetes.cri-o.SeccompProfilePath": "",
-        "org.systemd.property.CollectMode": "'inactive-or-failed'"
-      },
-      "linux": {
-        "resources": {
-          "devices": [
-            {
-              "allow": false,
-              "access": "rwm"
-            }
-          ],
-          "memory": {
-            "limit": 209715200,
-            "swap": 209715200
-          },
-          "cpu": {
-            "shares": 512,
-            "quota": 20000,
-            "period": 10000,
-            "cpus": "0",
-            "mems": "0"
-          },
-          "pids": {
-            "limit": 0
-          }
-        },
-        "cgroupsPath": "pod_123-456.slice:crio:49ecc282021562c567a8159ef424a06cdd8637efdca5953de9794eafe29adcad",
-        "namespaces": [
-          {
-            "type": "pid"
-          }
-        ],
-        "seccomp": {
-          "defaultAction": "SCMP_ACT_ERRNO",
-          "defaultErrnoRet": 38,
-          "architectures": [
-            "SCMP_ARCH_X86_64"
-          ],
-          "syscalls": [
-            {
-              "names": [
-                "unshare"
-              ],
-              "action": "SCMP_ACT_ALLOW"
-            }
-          ]
-        },
-        "maskedPaths": [
-          "/proc/acpi"
-        ],
-        "readonlyPaths": [
-          "/proc/asound"
-        ]
-      }
     },
     "privileged": true
-  }
-})";
+}
+)";
 
-std::string pod_info_json_crio = R"({
-   "runtimeSpec": {
-      "ociVersion": "1.0.2-dev",
-      "process": {
-        "user": {
-          "uid": 0,
-          "gid": 0
+std::string pod_info_json_crio = R"(
+{
+    "runtimeSpec": {
+        "ociVersion": "1.0.2-dev",
+        "process": {
+            "user": {
+                "uid": 0,
+                "gid": 0
+            },
+            "args": [
+                "/pause"
+            ],
+            "env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "TERM=xterm"
+            ],
+            "cwd": "/",
+            "capabilities": {
+                "bounding": [
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "effective": [
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "inheritable": [
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ],
+                "permitted": [
+                    "CAP_CHOWN",
+                    "CAP_DAC_OVERRIDE",
+                    "CAP_FSETID",
+                    "CAP_FOWNER",
+                    "CAP_SETGID",
+                    "CAP_SETUID",
+                    "CAP_SETPCAP",
+                    "CAP_NET_BIND_SERVICE",
+                    "CAP_KILL"
+                ]
+            },
+            "oomScoreAdj": -998
         },
-        "args": [
-          "/pause"
-        ],
-        "env": [
-          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-          "TERM=xterm"
-        ],
-        "cwd": "/",
-        "capabilities": {
-          "bounding": [
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "effective": [
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "inheritable": [
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ],
-          "permitted": [
-            "CAP_CHOWN",
-            "CAP_DAC_OVERRIDE",
-            "CAP_FSETID",
-            "CAP_FOWNER",
-            "CAP_SETGID",
-            "CAP_SETUID",
-            "CAP_SETPCAP",
-            "CAP_NET_BIND_SERVICE",
-            "CAP_KILL"
-          ]
+        "root": {
+            "path": "/var/lib/containers/storage/overlay/3d0bdf5559c7bc99637bb455e8612da36bbb082af75467f5aec80a29f2e3a72c/merged",
+            "readonly": true
         },
-        "oomScoreAdj": -998
-      },
-      "root": {
-        "path": "/var/lib/containers/storage/overlay/3d0bdf5559c7bc99637bb455e8612da36bbb082af75467f5aec80a29f2e3a72c/merged",
-        "readonly": true
-      },
-      "hostname": "crictl_host",
-      "mounts": [
-        {
-          "destination": "/proc",
-          "type": "proc",
-          "source": "proc",
-          "options": [
-            "nosuid",
-            "noexec",
-            "nodev"
-          ]
-        }
-      ],
-      "annotations": {
-        "io.kubernetes.cri-o.ResolvPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/resolv.conf",
-        "org.systemd.property.CollectMode": "'inactive-or-failed'",
-        "io.kubernetes.cri-o.Name": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
-        "io.kubernetes.cri-o.SandboxID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
-        "io.kubernetes.cri-o.Image": "registry.k8s.io/pause:3.6",
-        "io.kubernetes.cri-o.PrivilegedRuntime": "false",
-        "io.kubernetes.cri-o.Created": "2023-12-12T04:10:22.504653972Z",
-        "io.kubernetes.cri-o.PortMappings": "[]",
-        "io.kubernetes.cri-o.IP.0": "10.244.0.3",
-        "io.kubernetes.cri-o.Labels": "{\"group\":\"test\",\"io.kubernetes.container.name\":\"POD\"}",
-        "io.kubernetes.cri-o.ShmPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/shm",
-        "io.kubernetes.cri-o.RuntimeHandler": "",
-        "io.kubernetes.cri-o.KubeName": "podsandbox1",
-        "io.kubernetes.cri-o.HostnamePath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/hostname",
-        "io.kubernetes.cri-o.SeccompProfilePath": "",
-        "io.kubernetes.cri-o.Namespace": "redhat.test.crio",
-        "io.kubernetes.cri-o.ContainerName": "k8s_POD_podsandbox1_redhat.test.crio_redhat-test-crio_1",
-        "security.alpha.kubernetes.io/seccomp/pod": "unconfined",
-        "io.kubernetes.container.name": "POD",
-        "owner": "hmeng",
-        "io.kubernetes.cri-o.LogPath": "/var/log/crio/pods/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca.log",
-        "io.kubernetes.cri-o.ImageName": "registry.k8s.io/pause:3.6",
-        "io.kubernetes.cri-o.NamespaceOptions": "{\"pid\":1}",
-        "io.kubernetes.cri-o.Spoofed": "true",
-        "io.kubernetes.cri-o.Annotations": "{\"com.example.test\":\"sandbox annotation\",\"security.alpha.kubernetes.io/seccomp/pod\":\"unconfined\",\"owner\":\"hmeng\"}",
-        "io.kubernetes.cri-o.HostName": "crictl_host",
-        "io.container.manager": "cri-o",
-        "com.example.test": "sandbox annotation",
-        "io.kubernetes.cri-o.SandboxName": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
-        "io.kubernetes.cri-o.ContainerID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
-        "io.kubernetes.cri-o.CgroupParent": "pod_123-456.slice",
-        "io.kubernetes.cri-o.CNIResult": "{\"cniVersion\":\"1.0.0\",\"interfaces\":[{\"name\":\"bridge\",\"mac\":\"ce:64:08:76:88:6a\"},{\"name\":\"veth71b0e931\",\"mac\":\"72:b7:4f:bc:e4:a4\"},{\"name\":\"eth0\",\"mac\":\"fe:06:00:f8:2f:4d\",\"sandbox\":\"/var/run/netns/dec735d1-0e86-44c1-94e0-a102173334a4\"}],\"ips\":[{\"interface\":2,\"address\":\"10.244.0.3/16\",\"gateway\":\"10.244.0.1\"}],\"routes\":[{\"dst\":\"0.0.0.0/0\",\"gw\":\"10.244.0.1\"}],\"dns\":{}}",
-        "io.kubernetes.cri-o.MountPoint": "/var/lib/containers/storage/overlay/3d0bdf5559c7bc99637bb455e8612da36bbb082af75467f5aec80a29f2e3a72c/merged",
-        "io.kubernetes.cri-o.Metadata": "{\"name\":\"podsandbox1\",\"uid\":\"redhat-test-crio\",\"namespace\":\"redhat.test.crio\",\"attempt\":1}",
-        "io.kubernetes.cri-o.ContainerType": "sandbox",
-        "io.kubernetes.cri-o.HostNetwork": "false",
-        "group": "test"
-      },
-      "linux": {
-        "resources": {
-          "devices": [
+        "hostname": "crictl_host",
+        "mounts": [
             {
-              "allow": false,
-              "access": "rwm"
+                "destination": "/proc",
+                "type": "proc",
+                "source": "proc",
+                "options": [
+                    "nosuid",
+                    "noexec",
+                    "nodev"
+                ]
             }
-          ],
-          "cpu": {
-            "shares": 2
-          }
-        },
-        "cgroupsPath": "pod_123-456.slice:crio:1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
-        "namespaces": [
-          {
-            "type": "pid"
-          },
-          {
-            "type": "network",
-            "path": "/var/run/netns/dec735d1-0e86-44c1-94e0-a102173334a4"
-          },
-          {
-            "type": "ipc",
-            "path": "/var/run/ipcns/dec735d1-0e86-44c1-94e0-a102173334a4"
-          },
-          {
-            "type": "uts",
-            "path": "/var/run/utsns/dec735d1-0e86-44c1-94e0-a102173334a4"
-          },
-          {
-            "type": "mount"
-          }
         ],
-        "seccomp": {
-          "defaultAction": "SCMP_ACT_ERRNO",
-          "defaultErrnoRet": 38,
-          "architectures": [
-            "SCMP_ARCH_X86_64",
-            "SCMP_ARCH_X86",
-            "SCMP_ARCH_X32"
-          ],
-          "syscalls": [
-            {
-              "names": [
-                "bdflush"
-              ],
-              "action": "SCMP_ACT_ERRNO",
-              "errnoRet": 1
+        "annotations": {
+            "io.kubernetes.cri-o.ResolvPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/resolv.conf",
+            "org.systemd.property.CollectMode": "'inactive-or-failed'",
+            "io.kubernetes.cri-o.Name": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
+            "io.kubernetes.cri-o.SandboxID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
+            "io.kubernetes.cri-o.Image": "registry.k8s.io/pause:3.6",
+            "io.kubernetes.cri-o.PrivilegedRuntime": "false",
+            "io.kubernetes.cri-o.Created": "2023-12-12T04:10:22.504653972Z",
+            "io.kubernetes.cri-o.PortMappings": "[]",
+            "io.kubernetes.cri-o.IP.0": "10.244.0.3",
+            "io.kubernetes.cri-o.Labels": "{\"group\":\"test\",\"io.kubernetes.container.name\":\"POD\"}",
+            "io.kubernetes.cri-o.ShmPath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/shm",
+            "io.kubernetes.cri-o.RuntimeHandler": "",
+            "io.kubernetes.cri-o.KubeName": "podsandbox1",
+            "io.kubernetes.cri-o.HostnamePath": "/run/containers/storage/overlay-containers/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/userdata/hostname",
+            "io.kubernetes.cri-o.SeccompProfilePath": "",
+            "io.kubernetes.cri-o.Namespace": "redhat.test.crio",
+            "io.kubernetes.cri-o.ContainerName": "k8s_POD_podsandbox1_redhat.test.crio_redhat-test-crio_1",
+            "security.alpha.kubernetes.io/seccomp/pod": "unconfined",
+            "io.kubernetes.container.name": "POD",
+            "owner": "hmeng",
+            "io.kubernetes.cri-o.LogPath": "/var/log/crio/pods/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca/1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca.log",
+            "io.kubernetes.cri-o.ImageName": "registry.k8s.io/pause:3.6",
+            "io.kubernetes.cri-o.NamespaceOptions": "{\"pid\":1}",
+            "io.kubernetes.cri-o.Spoofed": "true",
+            "io.kubernetes.cri-o.Annotations": "{\"com.example.test\":\"sandbox annotation\",\"security.alpha.kubernetes.io/seccomp/pod\":\"unconfined\",\"owner\":\"hmeng\"}",
+            "io.kubernetes.cri-o.HostName": "crictl_host",
+            "io.container.manager": "cri-o",
+            "com.example.test": "sandbox annotation",
+            "io.kubernetes.cri-o.SandboxName": "k8s_podsandbox1_redhat.test.crio_redhat-test-crio_1",
+            "io.kubernetes.cri-o.ContainerID": "1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
+            "io.kubernetes.cri-o.CgroupParent": "pod_123-456.slice",
+            "io.kubernetes.cri-o.CNIResult": "{\"cniVersion\":\"1.0.0\",\"interfaces\":[{\"name\":\"bridge\",\"mac\":\"ce:64:08:76:88:6a\"},{\"name\":\"veth71b0e931\",\"mac\":\"72:b7:4f:bc:e4:a4\"},{\"name\":\"eth0\",\"mac\":\"fe:06:00:f8:2f:4d\",\"sandbox\":\"/var/run/netns/dec735d1-0e86-44c1-94e0-a102173334a4\"}],\"ips\":[{\"interface\":2,\"address\":\"10.244.0.3/16\",\"gateway\":\"10.244.0.1\"}],\"routes\":[{\"dst\":\"0.0.0.0/0\",\"gw\":\"10.244.0.1\"}],\"dns\":{}}",
+            "io.kubernetes.cri-o.MountPoint": "/var/lib/containers/storage/overlay/3d0bdf5559c7bc99637bb455e8612da36bbb082af75467f5aec80a29f2e3a72c/merged",
+            "io.kubernetes.cri-o.Metadata": "{\"name\":\"podsandbox1\",\"uid\":\"redhat-test-crio\",\"namespace\":\"redhat.test.crio\",\"attempt\":1}",
+            "io.kubernetes.cri-o.ContainerType": "sandbox",
+            "io.kubernetes.cri-o.HostNetwork": "false",
+            "group": "test"
+        },
+        "linux": {
+            "resources": {
+                "devices": [
+                    {
+                        "allow": false,
+                        "access": "rwm"
+                    }
+                ],
+                "cpu": {
+                    "shares": 2
+                }
+            },
+            "cgroupsPath": "pod_123-456.slice:crio:1f04600dc6949359da68eee5fe7c4069706a567c07d1ef89fe3bbfdeac7a6dca",
+            "namespaces": [
+                {
+                    "type": "pid"
+                },
+                {
+                    "type": "network",
+                    "path": "/var/run/netns/dec735d1-0e86-44c1-94e0-a102173334a4"
+                },
+                {
+                    "type": "ipc",
+                    "path": "/var/run/ipcns/dec735d1-0e86-44c1-94e0-a102173334a4"
+                },
+                {
+                    "type": "uts",
+                    "path": "/var/run/utsns/dec735d1-0e86-44c1-94e0-a102173334a4"
+                },
+                {
+                    "type": "mount"
+                }
+            ],
+            "seccomp": {
+                "defaultAction": "SCMP_ACT_ERRNO",
+                "defaultErrnoRet": 38,
+                "architectures": [
+                    "SCMP_ARCH_X86_64",
+                    "SCMP_ARCH_X86",
+                    "SCMP_ARCH_X32"
+                ],
+                "syscalls": [
+                    {
+                        "names": [
+                            "bdflush"
+                        ],
+                        "action": "SCMP_ACT_ERRNO",
+                        "errnoRet": 1
+                    }
+                ]
             }
-          ]
         }
-      }
     }
-  }
-})";
+}
+)";
 
 runtime::v1alpha2::ContainerStatusResponse get_default_cri_crio_container_status_resp() {
 	// "status": {
@@ -766,6 +768,8 @@ TEST_F(sinsp_with_test_input, container_parser_cri_crio) {
 	// parsed in cri.hpp for cri-o
 	ASSERT_EQ(get_field_as_string(evt, "container.type"), "cri-o");
 	ASSERT_EQ(get_field_as_string(evt, "container.privileged"), "true");
+	// XXX TODO FIX BELOW
+	// BUG! Mounts are not detected correctly
 	ASSERT_EQ(get_field_as_string(evt, "container.mounts"), "/boot:/host/boot::false:private");
 	ASSERT_EQ(get_field_as_string(evt, "container.mount.source[0]"), "/boot");
 	ASSERT_EQ(get_field_as_string(evt, "container.mount.dest[0]"), "/host/boot");

@@ -14,6 +14,7 @@
 #
 include(protobuf)
 include(jsoncpp)
+include(njson)
 
 find_package(Threads)
 
@@ -60,6 +61,10 @@ if(USE_BUNDLED_JSONCPP)
 	add_dependencies(scap jsoncpp)
 endif()
 
+if(USE_BUNDLED_NLOHMANN_JSON)
+	add_dependencies(scap nlohmann_json)
+endif()
+
 add_library(
 	scap_engine_gvisor ${scap_engine_gvisor_sources} ${scap_engine_gvisor_generated_sources}
 )
@@ -67,7 +72,7 @@ add_library(
 add_dependencies(scap_engine_gvisor uthash)
 target_link_libraries(
 	scap_engine_gvisor PUBLIC scap_platform_util scap_error ${CMAKE_THREAD_LIBS_INIT}
-							  ${PROTOBUF_LIB} ${JSONCPP_LIB}
+							  ${PROTOBUF_LIB} ${JSONCPP_LIB} nlohmann_json
 )
 
 target_include_directories(scap_engine_gvisor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

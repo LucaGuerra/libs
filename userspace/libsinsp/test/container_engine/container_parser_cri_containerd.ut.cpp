@@ -760,6 +760,8 @@ TEST_F(sinsp_with_test_input, container_parser_cri_containerd) {
 	ASSERT_EQ(get_field_as_string(evt, "container.image.id"), "busybox");
 	ASSERT_EQ(get_field_as_string(evt, "container.type"), "containerd");
 	ASSERT_EQ(get_field_as_string(evt, "container.privileged"), "true");
+	// XXX TODO FIX BELOW
+	// BUG! Mounts are not parsed correctly
 	ASSERT_EQ(get_field_as_string(evt, "container.mounts"), "/boot:/host/boot::false:private");
 	ASSERT_EQ(get_field_as_string(evt, "container.mount.source[0]"), "/boot");
 	ASSERT_EQ(get_field_as_string(evt, "container.mount.dest[0]"), "/host/boot");

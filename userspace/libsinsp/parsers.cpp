@@ -46,6 +46,8 @@ limitations under the License.
 #include <libsinsp/container_engine/docker/async_source.h>
 #endif
 
+#include <nlohmann/json.hpp>
+
 sinsp_parser::sinsp_parser(sinsp *inspector):
         m_inspector(inspector),
         m_tmp_evt(m_inspector),
@@ -4609,20 +4611,17 @@ void sinsp_parser::parse_setgid_exit(sinsp_evt *evt) {
 }
 
 namespace {
-std::string generate_error_message(const Json::Value &value, const char *field) {
-	std::string val_as_string = value.isConvertibleTo(Json::stringValue)
-	                                    ? value.asString().c_str()
-	                                    : "value not convertible to string";
-	std::string err_msg =
-	        "Unable to convert json value '" + val_as_string + "' for the field: '" + field + "'";
-
-	return err_msg;
+// Error message generator for invalid fields
+std::string generate_error_message(const nlohmann::json &value, const char *field) {
+	std::string val_as_string =
+	        value.is_string() ? value.get<std::string>() : "value not convertible to string";
+	return "Unable to convert json value '" + val_as_string + "' for the field: '" + field + "'";
 }
 
-bool check_int64_json_is_convertible(const Json::Value &value, const char *field) {
-	if(!value.isNull()) {
-		// isConvertibleTo doesn't seem to work on large 64 bit numbers
-		if(value.isInt64()) {
+// Check if a 64-bit integer is convertible
+bool check_int64_json_is_convertible(const nlohmann::json &value, const char *field) {
+	if(!value.is_null()) {
+		if(value.is_number_integer()) {
 			return true;
 		} else {
 			std::string err_msg = generate_error_message(value, field);
@@ -4632,25 +4631,19 @@ bool check_int64_json_is_convertible(const Json::Value &value, const char *field
 	return false;
 }
 
-bool check_json_val_is_convertible(const Json::Value &value,
-                                   Json::ValueType other,
+bool check_json_val_is_convertible(const nlohmann::json &value,
+                                   nlohmann::json::value_t expected_type,
                                    const char *field,
                                    bool log_message = false) {
-	if(value.isNull()) {
+	if(value.is_null()) {
 		return false;
 	}
-
-	if(!value.isConvertibleTo(other)) {
-		std::string err_msg;
-
+	if(value.type() != expected_type) {
+		std::string err_msg = generate_error_message(value, field);
 		if(log_message) {
-			err_msg = generate_error_message(value, field);
 			SINSP_WARNING("%s", err_msg.c_str());
 		} else {
-			if(libsinsp_logger()->get_severity() >= sinsp_logger::SEV_DEBUG) {
-				err_msg = generate_error_message(value, field);
-				SINSP_DEBUG("%s", err_msg.c_str());
-			}
+			SINSP_DEBUG("%s", err_msg.c_str());
 		}
 		return false;
 	}
@@ -4670,93 +4663,88 @@ void sinsp_parser::parse_container_json_evt(sinsp_evt *evt) {
 		}
 	}
 
-	const sinsp_evt_param *parinfo = evt->get_param(0);
-	ASSERT(parinfo);
-	ASSERT(parinfo->m_len > 0);
-	std::string json(parinfo->m_val, parinfo->m_len);
-	SINSP_DEBUG("Parsing Container JSON=%s", json.c_str());
-	Json::Value root;
-	if(Json::Reader().parse(json, root)) {
-		auto container_info = std::make_shared<sinsp_container_info>();
-		const Json::Value &container = root["container"];
-		const Json::Value &id = container["id"];
-		if(check_json_val_is_convertible(id, Json::stringValue, "id")) {
-			container_info->m_id = id.asString();
-		}
-		const Json::Value &full_id = container["full_id"];
-		if(check_json_val_is_convertible(full_id, Json::stringValue, "full_id")) {
-			container_info->m_full_id = full_id.asString();
-		}
-		const Json::Value &type = container["type"];
-		if(check_json_val_is_convertible(type, Json::uintValue, "type")) {
-			container_info->m_type = static_cast<sinsp_container_type>(type.asUInt());
-		}
-		const Json::Value &name = container["name"];
-		if(check_json_val_is_convertible(name, Json::stringValue, "name")) {
-			container_info->m_name = name.asString();
-		}
+	std::string json_str = evt->get_param(0)->as<std::string>();
+	SINSP_DEBUG("Parsing Container JSON=%s", json_str.c_str());
 
-		const Json::Value &is_pod_sandbox = container["is_pod_sandbox"];
-		if(check_json_val_is_convertible(is_pod_sandbox, Json::booleanValue, "is_pod_sandbox")) {
-			container_info->m_is_pod_sandbox = is_pod_sandbox.asBool();
-		}
+	nlohmann::json root;
+	try {
+		root = nlohmann::json::parse(json_str);
+	} catch(const nlohmann::json::parse_error &e) {
+		throw sinsp_exception("Invalid JSON encountered while parsing container info: " + json_str +
+		                      " error=" + std::string(e.what()));
+	}
 
-		const Json::Value &image = container["image"];
-		if(check_json_val_is_convertible(image, Json::stringValue, "image")) {
-			container_info->m_image = image.asString();
-		}
-		const Json::Value &imageid = container["imageid"];
-		if(check_json_val_is_convertible(imageid, Json::stringValue, "imageid")) {
-			container_info->m_imageid = imageid.asString();
-		}
-		const Json::Value &imagerepo = container["imagerepo"];
-		if(check_json_val_is_convertible(imagerepo, Json::stringValue, "imagerepo")) {
-			container_info->m_imagerepo = imagerepo.asString();
-		}
-		const Json::Value &imagetag = container["imagetag"];
-		if(check_json_val_is_convertible(imagetag, Json::stringValue, "imagetag")) {
-			container_info->m_imagetag = imagetag.asString();
-		}
-		const Json::Value &imagedigest = container["imagedigest"];
-		if(check_json_val_is_convertible(imagedigest, Json::stringValue, "imagedigest")) {
-			container_info->m_imagedigest = imagedigest.asString();
-		}
-		const Json::Value &privileged = container["privileged"];
-		if(check_json_val_is_convertible(privileged, Json::booleanValue, "privileged")) {
-			container_info->m_privileged = privileged.asBool();
-		}
-		const Json::Value &lookup_state = container["lookup_state"];
-		if(check_json_val_is_convertible(lookup_state, Json::uintValue, "lookup_state")) {
-			container_info->set_lookup_status(
-			        static_cast<sinsp_container_lookup::state>(lookup_state.asUInt()));
-			switch(container_info->get_lookup_status()) {
-			case sinsp_container_lookup::state::STARTED:
-			case sinsp_container_lookup::state::SUCCESSFUL:
-			case sinsp_container_lookup::state::FAILED:
-				break;
-			default:
-				container_info->set_lookup_status(sinsp_container_lookup::state::SUCCESSFUL);
-			}
+	auto container_info = std::make_shared<sinsp_container_info>();
+	nlohmann::json &container = root["container"];
 
-			// state == STARTED doesn't make sense in a scap file
-			// as there's no actual lookup that would ever finish
-			if(!evt->get_tinfo_ref() &&
-			   container_info->get_lookup_status() == sinsp_container_lookup::state::STARTED) {
-				SINSP_DEBUG(
-				        "Rewriting lookup_state = STARTED from scap file to FAILED for container "
-				        "%s",
-				        container_info->m_id.c_str());
-				container_info->set_lookup_status(sinsp_container_lookup::state::FAILED);
-			}
-		} else {
-			// Fallback at successful state
-			container_info->set_lookup_status(sinsp_container_lookup::state::SUCCESSFUL);
-		}
+	if(check_json_val_is_convertible(container["id"], nlohmann::json::value_t::string, "id")) {
+		container_info->m_id = container["id"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["full_id"],
+	                                 nlohmann::json::value_t::string,
+	                                 "full_id")) {
+		container_info->m_full_id = container["full_id"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["type"],
+	                                 nlohmann::json::value_t::number_unsigned,
+	                                 "type")) {
+		container_info->m_type =
+		        static_cast<sinsp_container_type>(container["type"].get<unsigned int>());
+	}
+	if(check_json_val_is_convertible(container["name"], nlohmann::json::value_t::string, "name")) {
+		container_info->m_name = container["name"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["is_pod_sandbox"],
+	                                 nlohmann::json::value_t::boolean,
+	                                 "is_pod_sandbox")) {
+		container_info->m_is_pod_sandbox = container["is_pod_sandbox"].get<bool>();
+	}
 
-		const Json::Value &created_time = container["created_time"];
-		if(check_int64_json_is_convertible(created_time, "created_time")) {
-			container_info->m_created_time = created_time.asInt64();
-		}
+	// Image fields
+	if(check_json_val_is_convertible(container["image"],
+	                                 nlohmann::json::value_t::string,
+	                                 "image")) {
+		container_info->m_image = container["image"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["imageid"],
+	                                 nlohmann::json::value_t::string,
+	                                 "imageid")) {
+		container_info->m_imageid = container["imageid"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["imagerepo"],
+	                                 nlohmann::json::value_t::string,
+	                                 "imagerepo")) {
+		container_info->m_imagerepo = container["imagerepo"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["imagetag"],
+	                                 nlohmann::json::value_t::string,
+	                                 "imagetag")) {
+		container_info->m_imagetag = container["imagetag"].get<std::string>();
+	}
+	if(check_json_val_is_convertible(container["imagedigest"],
+	                                 nlohmann::json::value_t::string,
+	                                 "imagedigest")) {
+		container_info->m_imagedigest = container["imagedigest"].get<std::string>();
+	}
+
+	if(check_json_val_is_convertible(container["privileged"],
+	                                 nlohmann::json::value_t::boolean,
+	                                 "privileged")) {
+		container_info->m_privileged = container["privileged"].get<bool>();
+	}
+
+	if(check_json_val_is_convertible(container["lookup_state"],
+	                                 nlohmann::json::value_t::number_unsigned,
+	                                 "lookup_state")) {
+		container_info->set_lookup_status(static_cast<sinsp_container_lookup::state>(
+		        container["lookup_state"].get<unsigned int>()));
+	} else {
+		container_info->set_lookup_status(sinsp_container_lookup::state::SUCCESSFUL);
+	}
+
+	if(check_int64_json_is_convertible(container["created_time"], "created_time")) {
+		container_info->m_created_time = container["created_time"].get<int64_t>();
+	}
 
 #if !defined(MINIMAL_BUILD) && !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 		libsinsp::container_engine::docker_async_source::parse_json_mounts(
@@ -4764,155 +4752,81 @@ void sinsp_parser::parse_container_json_evt(sinsp_evt *evt) {
 		        container_info->m_mounts);
 #endif
 
-		const Json::Value &user = container["User"];
-		if(check_json_val_is_convertible(user, Json::stringValue, "User")) {
-			container_info->m_container_user = user.asString();
-		}
-
-		sinsp_container_info::container_health_probe::parse_health_probes(
-		        container,
-		        container_info->m_health_probes);
-
-		const Json::Value &contip = container["ip"];
-		if(check_json_val_is_convertible(contip, Json::stringValue, "ip")) {
-			uint32_t ip;
-
-			if(inet_pton(AF_INET, contip.asString().c_str(), &ip) == -1) {
-				throw sinsp_exception("Invalid 'ip' field while parsing container info: " + json);
-			}
-
-			container_info->m_container_ip = ntohl(ip);
-		}
-
-		const Json::Value &cniresult = container["cni_json"];
-		if(check_json_val_is_convertible(cniresult, Json::stringValue, "cni_json")) {
-			container_info->m_pod_sandbox_cniresult = cniresult.asString();
-		}
-
-		const Json::Value &pod_sandbox_id = container["pod_sandbox_id"];
-		if(check_json_val_is_convertible(pod_sandbox_id, Json::stringValue, "pod_sandbox_id")) {
-			container_info->m_pod_sandbox_id = pod_sandbox_id.asString();
-		}
-
-		const Json::Value &port_mappings = container["port_mappings"];
-
-		if(check_json_val_is_convertible(port_mappings, Json::arrayValue, "port_mappings")) {
-			for(Json::Value::ArrayIndex i = 0; i != port_mappings.size(); i++) {
-				sinsp_container_info::container_port_mapping map;
-				const Json::Value &host_ip = port_mappings[i]["HostIp"];
-				// We log message for HostIp conversion failure at Warning level
-				if(check_json_val_is_convertible(host_ip, Json::intValue, "HostIp", true)) {
-					map.m_host_ip = host_ip.asInt();
-				}
-				const Json::Value &host_port = port_mappings[i]["HostPort"];
-				// We log message for HostPort conversion failure at Warning level
-				if(check_json_val_is_convertible(host_port, Json::intValue, "HostPort", true)) {
-					map.m_host_port = (uint16_t)host_port.asInt();
-				}
-				const Json::Value &container_port = port_mappings[i]["ContainerPort"];
-				// We log message for ContainerPort conversion failure at Warning level
-				if(check_json_val_is_convertible(container_port,
-				                                 Json::intValue,
-				                                 "ContainerPort",
-				                                 true)) {
-					map.m_container_port = (uint16_t)container_port.asInt();
-				}
-				container_info->m_port_mappings.push_back(map);
-			}
-		}
-
-		std::vector<std::string> labels = container["labels"].getMemberNames();
-		for(std::vector<std::string>::const_iterator it = labels.begin(); it != labels.end();
-		    ++it) {
-			std::string val = container["labels"][*it].asString();
-			container_info->m_labels[*it] = val;
-		}
-
-		std::vector<std::string> pod_sandbox_labels =
-		        container["pod_sandbox_labels"].getMemberNames();
-		for(std::vector<std::string>::const_iterator it = pod_sandbox_labels.begin();
-		    it != pod_sandbox_labels.end();
-		    ++it) {
-			std::string val = container["pod_sandbox_labels"][*it].asString();
-			container_info->m_pod_sandbox_labels[*it] = val;
-		}
-
-		const Json::Value &env_vars = container["env"];
-
-		for(const auto &env_var : env_vars) {
-			if(env_var.isString()) {
-				container_info->m_env.emplace_back(env_var.asString());
-			}
-		}
-
-		const Json::Value &memory_limit = container["memory_limit"];
-		if(check_int64_json_is_convertible(memory_limit, "memory_limit")) {
-			container_info->m_memory_limit = memory_limit.asInt64();
-		}
-
-		const Json::Value &swap_limit = container["swap_limit"];
-		if(check_int64_json_is_convertible(swap_limit, "swap_limit")) {
-			container_info->m_swap_limit = swap_limit.asInt64();
-		}
-
-		const Json::Value &cpu_shares = container["cpu_shares"];
-		if(check_int64_json_is_convertible(cpu_shares, "cpu_shares")) {
-			container_info->m_cpu_shares = cpu_shares.asInt64();
-		}
-
-		const Json::Value &cpu_quota = container["cpu_quota"];
-		if(check_int64_json_is_convertible(cpu_quota, "cpu_quota")) {
-			container_info->m_cpu_quota = cpu_quota.asInt64();
-		}
-
-		const Json::Value &cpu_period = container["cpu_period"];
-		if(check_int64_json_is_convertible(cpu_period, "cpu_period")) {
-			container_info->m_cpu_period = cpu_period.asInt64();
-		}
-
-		const Json::Value &cpuset_cpu_count = container["cpuset_cpu_count"];
-		if(check_json_val_is_convertible(cpuset_cpu_count, Json::intValue, "cpuset_cpu_count")) {
-			container_info->m_cpuset_cpu_count = cpuset_cpu_count.asInt();
-		}
-
-		const Json::Value &mesos_task_id = container["mesos_task_id"];
-		if(check_json_val_is_convertible(mesos_task_id, Json::stringValue, "mesos_task_id")) {
-			container_info->m_mesos_task_id = mesos_task_id.asString();
-		}
-
-		const Json::Value &metadata_deadline = container["metadata_deadline"];
-		if(!metadata_deadline.isNull()) {
-			// isConvertibleTo doesn't seem to work on large 64 bit numbers
-			if(metadata_deadline.isUInt64()) {
-				container_info->m_metadata_deadline = metadata_deadline.asUInt64();
-			} else {
-				SINSP_DEBUG("Unable to convert json value for field: %s", "metadata_deadline");
-			}
-		}
-
-		if(!container_info->is_successful()) {
-			SINSP_DEBUG(
-			        "Filtering container event for failed lookup of %s (but calling callbacks "
-			        "anyway)",
-			        container_info->m_id.c_str());
-			evt->set_filtered_out(true);
-		}
-		evt->set_tinfo_ref(container_info->get_tinfo(m_inspector));
-		evt->set_tinfo(evt->get_tinfo_ref().get());
-		m_inspector->m_container_manager.add_container(container_info, evt->get_thread_info(true));
-		/*
-		SINSP_STR_DEBUG("Container\n-------\nID:" + container_info.m_id +
-		                "\nType: " + std::to_string(container_info.m_type) +
-		                "\nName: " + container_info.m_name +
-		                "\nImage: " + container_info.m_image +
-		                "\nMesos Task ID: " + container_info.m_mesos_task_id);
-		*/
-	} else {
-		std::string errstr;
-		errstr = Json::Reader().getFormattedErrorMessages();
-		throw sinsp_exception("Invalid JSON encountered while parsing container info: " + json +
-		                      "error=" + errstr);
+	if(check_json_val_is_convertible(container["User"], nlohmann::json::value_t::string, "User")) {
+		container_info->m_container_user = container["User"].get<std::string>();
 	}
+
+	sinsp_container_info::container_health_probe::parse_health_probes(
+			container,
+			container_info->m_health_probes);
+
+	if(check_json_val_is_convertible(container["ip"], nlohmann::json::value_t::string, "ip")) {
+		uint32_t ip;
+		if(inet_pton(AF_INET, container["ip"].get<std::string>().c_str(), &ip) == -1) {
+			throw sinsp_exception("Invalid 'ip' field while parsing container info: " + json_str);
+		}
+		container_info->m_container_ip = ntohl(ip);
+	}
+	if(check_json_val_is_convertible(container["cni_json"],
+	                                 nlohmann::json::value_t::string,
+	                                 "cni_json")) {
+		container_info->m_pod_sandbox_cniresult = container["cni_json"].get<std::string>();
+	}
+
+	if(check_json_val_is_convertible(container["pod_sandbox_id"],
+	                                 nlohmann::json::value_t::string,
+	                                 "pod_sandbox_id")) {
+		container_info->m_pod_sandbox_id = container["pod_sandbox_id"].get<std::string>();
+	}
+
+	for(auto it = container["labels"].begin(); it != container["labels"].end(); ++it) {
+		container_info->m_labels[it.key()] = it.value().get<std::string>();
+	}
+	for(auto it = container["pod_sandbox_labels"].begin();
+	    it != container["pod_sandbox_labels"].end();
+	    ++it) {
+		container_info->m_pod_sandbox_labels[it.key()] = it.value().get<std::string>();
+	}
+
+	for(const auto &env_var : container["env"]) {
+		if(env_var.is_string()) {
+			container_info->m_env.emplace_back(env_var.get<std::string>());
+		}
+	}
+
+	if(check_int64_json_is_convertible(container["memory_limit"], "memory_limit")) {
+		container_info->m_memory_limit = container["memory_limit"].get<int64_t>();
+	}
+	if(check_int64_json_is_convertible(container["swap_limit"], "swap_limit")) {
+		container_info->m_swap_limit = container["swap_limit"].get<int64_t>();
+	}
+	if(check_int64_json_is_convertible(container["cpu_shares"], "cpu_shares")) {
+		container_info->m_cpu_shares = container["cpu_shares"].get<int64_t>();
+	}
+	if(check_int64_json_is_convertible(container["cpu_quota"], "cpu_quota")) {
+		container_info->m_cpu_quota = container["cpu_quota"].get<int64_t>();
+	}
+	if(check_int64_json_is_convertible(container["cpu_period"], "cpu_period")) {
+		container_info->m_cpu_period = container["cpu_period"].get<int64_t>();
+	}
+
+	if(check_json_val_is_convertible(container["mesos_task_id"],
+	                                 nlohmann::json::value_t::string,
+	                                 "mesos_task_id")) {
+		container_info->m_pod_sandbox_id = container["mesos_task_id"].get<std::string>();
+	}
+
+	if(!container_info->is_successful()) {
+		SINSP_DEBUG(
+				"Filtering container event for failed lookup of %s (but calling callbacks "
+				"anyway)",
+				container_info->m_id.c_str());
+		evt->set_filtered_out(true);
+	}
+	evt->set_tinfo_ref(container_info->get_tinfo(m_inspector));
+	evt->set_tinfo(evt->get_tinfo_ref().get());
+
+	m_inspector->m_container_manager.add_container(container_info, evt->get_thread_info(true));
 }
 
 void sinsp_parser::parse_container_evt(sinsp_evt *evt) {

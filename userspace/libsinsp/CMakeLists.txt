@@ -31,6 +31,7 @@ include(ExternalProject)
 
 include(BuildPkgConfigDependencies)
 include(jsoncpp)
+include(njson)
 include(zlib)
 
 if(NOT MINIMAL_BUILD)

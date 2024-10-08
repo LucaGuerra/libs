@@ -14,6 +14,7 @@
 #
 
 include(jsoncpp)
+include(njson)
 
 add_executable(sinsp-example util.cpp test.cpp)
 

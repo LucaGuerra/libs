@@ -154,8 +154,9 @@ bool sinsp_container_manager::resolve_container(sinsp_threadinfo* tinfo,
 }
 
 std::string sinsp_container_manager::container_to_json(const sinsp_container_info& container_info) {
-	Json::Value obj;
-	Json::Value& container = obj["container"];
+	nlohmann::json obj;
+	nlohmann::json& container = obj["container"];
+
 	container["id"] = container_info.m_id;
 	container["full_id"] = container_info.m_full_id;
 	container["type"] = container_info.m_type;
@@ -168,29 +169,28 @@ std::string sinsp_container_manager::container_to_json(const sinsp_container_inf
 	container["privileged"] = container_info.m_privileged;
 	container["is_pod_sandbox"] = container_info.m_is_pod_sandbox;
 	container["lookup_state"] = static_cast<int>(container_info.get_lookup_status());
-	container["created_time"] = static_cast<Json::Value::Int64>(container_info.m_created_time);
+	container["created_time"] = static_cast<int64_t>(container_info.m_created_time);
 
-	Json::Value mounts = Json::arrayValue;
-
-	for(auto& mntinfo : container_info.m_mounts) {
-		Json::Value mount;
-
+	nlohmann::json mounts = nlohmann::json::array();
+	for(const auto& mntinfo : container_info.m_mounts) {
+		nlohmann::json mount;
+		std::cout << "source: " << mntinfo.m_source << std::endl;
 		mount["Source"] = mntinfo.m_source;
 		mount["Destination"] = mntinfo.m_dest;
 		mount["Mode"] = mntinfo.m_mode;
 		mount["RW"] = mntinfo.m_rdwr;
 		mount["Propagation"] = mntinfo.m_propagation;
-
-		mounts.append(mount);
+		mounts.push_back(mount);
 	}
-
 	container["Mounts"] = mounts;
 
 	container["User"] = container_info.m_container_user;
 
+	// Health Probes
 	sinsp_container_info::container_health_probe::add_health_probes(container_info.m_health_probes,
 	                                                                container);
 
+	// IP Address
 	char addrbuff[100];
 	uint32_t iph = htonl(container_info.m_container_ip);
 	inet_ntop(AF_INET, &iph, addrbuff, sizeof(addrbuff));
@@ -199,56 +199,58 @@ std::string sinsp_container_manager::container_to_json(const sinsp_container_inf
 	container["cni_json"] = container_info.m_pod_sandbox_cniresult;
 	container["pod_sandbox_id"] = container_info.m_pod_sandbox_id;
 
-	Json::Value port_mappings = Json::arrayValue;
-
-	for(auto& mapping : container_info.m_port_mappings) {
-		Json::Value jmap;
+	// Port Mappings
+	nlohmann::json port_mappings = nlohmann::json::array();
+	for(const auto& mapping : container_info.m_port_mappings) {
+		nlohmann::json jmap;
 		jmap["HostIp"] = mapping.m_host_ip;
 		jmap["HostPort"] = mapping.m_host_port;
 		jmap["ContainerPort"] = mapping.m_container_port;
-
-		port_mappings.append(jmap);
+		port_mappings.push_back(jmap);
 	}
-
 	container["port_mappings"] = port_mappings;
 
-	Json::Value labels;
-	for(auto& pair : container_info.m_labels) {
+	// Labels
+	nlohmann::json labels;
+	for(const auto& pair : container_info.m_labels) {
 		labels[pair.first] = pair.second;
 	}
 	container["labels"] = labels;
 
-	Json::Value pod_sandbox_labels;
-	for(auto& pair : container_info.m_pod_sandbox_labels) {
+	// Pod Sandbox Labels
+	nlohmann::json pod_sandbox_labels;
+	for(const auto& pair : container_info.m_pod_sandbox_labels) {
 		pod_sandbox_labels[pair.first] = pair.second;
 	}
 	container["pod_sandbox_labels"] = pod_sandbox_labels;
 
-	Json::Value env_vars = Json::arrayValue;
-
-	for(auto& var : container_info.m_env) {
-		// Only append a limited set of mesos/marathon-related
-		// environment variables.
+	// Environment Variables
+	nlohmann::json env_vars = nlohmann::json::array();
+	for(const auto& var : container_info.m_env) {
+		// Only append a limited set of mesos/marathon-related environment variables.
 		if(var.find("MESOS") != std::string::npos || var.find("MARATHON") != std::string::npos ||
 		   var.find("mesos") != std::string::npos) {
-			env_vars.append(var);
+			env_vars.push_back(var);
 		}
 	}
 	container["env"] = env_vars;
 
-	container["memory_limit"] = (Json::Value::Int64)container_info.m_memory_limit;
-	container["swap_limit"] = (Json::Value::Int64)container_info.m_swap_limit;
-	container["cpu_shares"] = (Json::Value::Int64)container_info.m_cpu_shares;
-	container["cpu_quota"] = (Json::Value::Int64)container_info.m_cpu_quota;
-	container["cpu_period"] = (Json::Value::Int64)container_info.m_cpu_period;
-	container["cpuset_cpu_count"] = (Json::Value::Int)container_info.m_cpuset_cpu_count;
+	// Resource Limits
+	container["memory_limit"] = static_cast<int64_t>(container_info.m_memory_limit);
+	container["swap_limit"] = static_cast<int64_t>(container_info.m_swap_limit);
+	container["cpu_shares"] = static_cast<int64_t>(container_info.m_cpu_shares);
+	container["cpu_quota"] = static_cast<int64_t>(container_info.m_cpu_quota);
+	container["cpu_period"] = static_cast<int64_t>(container_info.m_cpu_period);
+	container["cpuset_cpu_count"] = static_cast<int>(container_info.m_cpuset_cpu_count);
 
+	// Mesos Task ID
 	if(!container_info.m_mesos_task_id.empty()) {
 		container["mesos_task_id"] = container_info.m_mesos_task_id;
 	}
 
-	container["metadata_deadline"] = (Json::Value::UInt64)container_info.m_metadata_deadline;
-	return Json::FastWriter().write(obj);
+	container["metadata_deadline"] = static_cast<uint64_t>(container_info.m_metadata_deadline);
+
+	return obj.dump();
 }
 
 bool sinsp_container_manager::container_to_sinsp_event(const std::string& json,

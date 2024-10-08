@@ -502,6 +502,7 @@ uint8_t *sinsp_filter_check_container::extract_single(sinsp_evt *evt,
 		RETURN_EXTRACT_VAR(m_val.u32);
 		break;
 	case TYPE_CONTAINER_MOUNTS:
+		std::cout << "TYPE_CONTAINER_MOUNTS\n";
 		if(is_host) {
 			return NULL;
 		} else {
@@ -526,6 +527,7 @@ uint8_t *sinsp_filter_check_container::extract_single(sinsp_evt *evt,
 
 		break;
 	case TYPE_CONTAINER_MOUNT:
+		std::cout << "TYPE_CONTAINER_MOUNT\n";
 		if(is_host) {
 			return NULL;
 		} else {
@@ -556,6 +558,7 @@ uint8_t *sinsp_filter_check_container::extract_single(sinsp_evt *evt,
 	case TYPE_CONTAINER_MOUNT_MODE:
 	case TYPE_CONTAINER_MOUNT_RDWR:
 	case TYPE_CONTAINER_MOUNT_PROPAGATION:
+		std::cout << "TYPE_CONTAINER_MOUNT_STUFF\n";
 		if(is_host) {
 			return NULL;
 		} else {

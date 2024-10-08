@@ -23,6 +23,8 @@ limitations under the License.
 #include <libsinsp/sinsp.h>
 #include <libsinsp/sinsp_int.h>
 
+#include <nlohmann/json.hpp>
+
 using namespace libsinsp::container_engine;
 
 bool rkt::match(container_cache_interface* cache,
@@ -191,8 +193,7 @@ bool rkt::rkt::parse_rkt(sinsp_container_info& container,
                          const std::string& podid,
                          const std::string& appname) {
 	bool ret = false;
-	Json::Reader reader;
-	Json::Value jroot;
+	nlohmann::json jroot;
 
 	char image_manifest_path[SCAP_MAX_PATH_SIZE];
 	snprintf(image_manifest_path,
@@ -202,19 +203,26 @@ bool rkt::rkt::parse_rkt(sinsp_container_info& container,
 	         podid.c_str(),
 	         appname.c_str());
 	std::ifstream image_manifest(image_manifest_path);
-	if(reader.parse(image_manifest, jroot)) {
-		container.m_image = jroot["name"].asString();
-		for(const auto& label_entry : jroot["labels"]) {
-			std::string val = label_entry["value"].asString();
-			if(val.length() <= sinsp_container_info::m_container_label_max_length) {
-				container.m_labels.emplace(label_entry["name"].asString(), val);
+	if(image_manifest.is_open()) {
+		try {
+			image_manifest >> jroot;
+			container.m_image = jroot["name"].get<std::string>();
+			for(const auto& label_entry : jroot["labels"]) {
+				std::string val = label_entry["value"].get<std::string>();
+				if(val.length() <= sinsp_container_info::m_container_label_max_length) {
+					container.m_labels.emplace(label_entry["name"].get<std::string>(), val);
+				}
 			}
+			auto version_label_it = container.m_labels.find("version");
+			if(version_label_it != container.m_labels.end()) {
+				container.m_image += ":" + version_label_it->second;
+			}
+			ret = true;
+		} catch(const nlohmann::json::parse_error& ex) {
+			libsinsp_logger()->format(sinsp_logger::SEV_ERROR,
+			                          "rkt::parse_rkt: Failed to parse image manifest at %s",
+			                          image_manifest_path);
 		}
-		auto version_label_it = container.m_labels.find("version");
-		if(version_label_it != container.m_labels.end()) {
-			container.m_image += ":" + version_label_it->second;
-		}
-		ret = true;
 	}
 
 	char net_info_path[SCAP_MAX_PATH_SIZE];
@@ -224,12 +232,23 @@ bool rkt::rkt::parse_rkt(sinsp_container_info& container,
 	         scap_get_host_root(),
 	         podid.c_str());
 	std::ifstream net_info(net_info_path);
-	if(reader.parse(net_info, jroot) && jroot.size() > 0) {
-		const auto& first_net = jroot[0];
-		if(inet_pton(AF_INET, first_net["ip"].asCString(), &container.m_container_ip) == -1) {
-			ASSERT(false);
+	if(net_info.is_open()) {
+		try {
+			net_info >> jroot;
+			if(jroot.size() > 0) {
+				const auto& first_net = jroot[0];
+				if(inet_pton(AF_INET,
+				             first_net["ip"].get<std::string>().c_str(),
+				             &container.m_container_ip) == -1) {
+					ASSERT(false);
+				}
+				container.m_container_ip = ntohl(container.m_container_ip);
+			}
+		} catch(const nlohmann::json::parse_error& ex) {
+			libsinsp_logger()->format(sinsp_logger::SEV_ERROR,
+			                          "rkt::parse_rkt: Failed to parse net info at %s",
+			                          net_info_path);
 		}
-		container.m_container_ip = ntohl(container.m_container_ip);
 	}
 
 	char pod_manifest_path[SCAP_MAX_PATH_SIZE];
@@ -240,25 +259,36 @@ bool rkt::rkt::parse_rkt(sinsp_container_info& container,
 	         podid.c_str());
 	std::ifstream pod_manifest(pod_manifest_path);
 	std::unordered_map<std::string, uint32_t> image_ports;
-	if(reader.parse(pod_manifest, jroot) && jroot.size() > 0) {
-		for(const auto& japp : jroot["apps"]) {
-			if(japp["name"].asString() == appname) {
-				for(const auto& image_port : japp["app"]["ports"]) {
-					image_ports[image_port["name"].asString()] = image_port["port"].asUInt();
+	if(pod_manifest.is_open()) {
+		try {
+			pod_manifest >> jroot;
+			if(jroot.size() > 0) {
+				for(const auto& japp : jroot["apps"]) {
+					if(japp["name"].get<std::string>() == appname) {
+						for(const auto& image_port : japp["app"]["ports"]) {
+							image_ports[image_port["name"].get<std::string>()] =
+							        image_port["port"].get<uint32_t>();
+						}
+						break;
+					}
 				}
-				break;
+				for(const auto& jport : jroot["ports"]) {
+					auto host_port = jport["hostPort"].get<uint32_t>();
+					auto container_port_it = image_ports.find(jport["name"].get<std::string>());
+					if(host_port > 0 && container_port_it != image_ports.end()) {
+						sinsp_container_info::container_port_mapping port_mapping;
+						port_mapping.m_host_port = host_port;
+						port_mapping.m_container_port = container_port_it->second;
+						container.m_port_mappings.emplace_back(std::move(port_mapping));
+					}
+				}
 			}
-		}
-		for(const auto& jport : jroot["ports"]) {
-			auto host_port = jport["hostPort"].asUInt();
-			auto container_port_it = image_ports.find(jport["name"].asString());
-			if(host_port > 0 && container_port_it != image_ports.end()) {
-				sinsp_container_info::container_port_mapping port_mapping;
-				port_mapping.m_host_port = host_port;
-				port_mapping.m_container_port = container_port_it->second;
-				container.m_port_mappings.emplace_back(std::move(port_mapping));
-			}
+		} catch(const nlohmann::json::parse_error& ex) {
+			libsinsp_logger()->format(sinsp_logger::SEV_ERROR,
+			                          "rkt::parse_rkt: Failed to parse pod manifest at %s",
+			                          pod_manifest_path);
 		}
 	}
+
 	return ret;
 }

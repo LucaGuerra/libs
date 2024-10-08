@@ -14,6 +14,7 @@
 #
 
 include(jsoncpp)
+include(njson)
 if(NOT EMSCRIPTEN)
 	include(tbb)
 endif()
