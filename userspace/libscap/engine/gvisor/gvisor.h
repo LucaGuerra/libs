@@ -111,7 +111,7 @@ procfs_result parse_procfs_json(const std::string &input, uint32_t sandbox_id);
 
 uint64_t get_vxid(uint64_t vxid);
 
-config_result parse_config(std::string config);
+config_result parse_config(const std::string &config);
 
 }  // namespace parsers
 

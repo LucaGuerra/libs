@@ -30,8 +30,8 @@ endif()
 include(ExternalProject)
 
 find_package(re2 REQUIRED CONFIG)
+find_package(jsoncpp REQUIRED CONFIG)
 
-include(jsoncpp)
 include(zlib)
 
 if(NOT MINIMAL_BUILD)
@@ -49,7 +49,7 @@ endif()
 # endif()
 
 if(NOT EMSCRIPTEN)
-	find_package(TBB)
+	find_package(TBB CONFIG REQUIRED)
 endif()
 
 add_library(
@@ -163,23 +163,15 @@ set_sinsp_target_properties(sinsp)
 target_link_libraries(
 	sinsp
 	PUBLIC scap
-	# PRIVATE re2 "${JSONCPP_LIB}"
-	PRIVATE "${JSONCPP_LIB}"
+	PRIVATE JsonCpp::JsonCpp
 )
 
-# set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${CURL_LIBRARIES}" "${JSONCPP_LIB}" "${RE2_LIB}")
-set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" re2)
+set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" JsonCpp::JsonCpp re2)
 
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
-		sinsp
-		PRIVATE
-		TBB::tbb
+		sinsp PRIVATE TBB::tbb
 	)
-endif()
-
-if(USE_BUNDLED_JSONCPP)
-	add_dependencies(sinsp jsoncpp)
 endif()
 
 if(ENABLE_THREAD_POOL AND USE_BUNDLED_BS_THREADPOOL)

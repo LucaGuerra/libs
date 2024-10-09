@@ -13,14 +13,9 @@
 # the License.
 #
 
-include(jsoncpp)
-
 find_package(Threads)
 find_package(Protobuf REQUIRED CONFIG)
-
-if(USE_BUNDLED_JSONCPP)
-	add_dependencies(scap jsoncpp)
-endif()
+find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(scap_engine_gvisor
 	${CMAKE_CURRENT_SOURCE_DIR}/parsers.cpp
@@ -45,9 +40,8 @@ protobuf_generate(
 
 add_dependencies(scap_engine_gvisor uthash)
 target_link_libraries(
-	scap_engine_gvisor PRIVATE scap scap_platform_util scap_error protobuf::libprotobuf
+	scap_engine_gvisor PRIVATE scap scap_platform_util scap_error protobuf::libprotobuf nlohmann_json::nlohmann_json
 								${CMAKE_THREAD_LIBS_INIT}
-								${JSONCPP_LIB}
 )
 
 target_include_directories(scap_engine_gvisor PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
