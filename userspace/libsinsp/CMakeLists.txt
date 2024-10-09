@@ -49,7 +49,7 @@ endif()
 # endif()
 
 if(NOT EMSCRIPTEN)
-	include(tbb)
+	find_package(TBB)
 endif()
 
 add_library(
@@ -173,7 +173,8 @@ set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" "${JSONCPP_LIB}" re2)
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
 		sinsp
-		PRIVATE "${TBB_LIB}"
+		PRIVATE
+		TBB::tbb
 	)
 endif()
 
@@ -183,10 +184,6 @@ endif()
 
 if(ENABLE_THREAD_POOL AND USE_BUNDLED_BS_THREADPOOL)
 	add_dependencies(sinsp bs_threadpool)
-endif()
-
-if(NOT EMSCRIPTEN)
-	add_dependencies(sinsp tbb)
 endif()
 
 if(NOT WIN32)

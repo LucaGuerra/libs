@@ -29,9 +29,9 @@ if(NOT HAVE_LIBSINSP)
 
 	include(ExternalProject)
 	include(libscap)
-	if(NOT EMSCRIPTEN)
-		include(tbb)
-	endif()
+	# if(NOT EMSCRIPTEN)
+	# 	find_package(TBB)
+	# endif()
 
 	include(jsoncpp)
 
@@ -43,10 +43,10 @@ if(NOT HAVE_LIBSINSP)
 							  ${DRIVER_CONFIG_DIR}
 	)
 
-	if(NOT EMSCRIPTEN)
-		get_filename_component(TBB_ABSOLUTE_INCLUDE_DIR ${TBB_INCLUDE_DIR} ABSOLUTE)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${TBB_ABSOLUTE_INCLUDE_DIR})
-	endif()
+	# if(NOT EMSCRIPTEN)
+	# 	get_filename_component(TBB_ABSOLUTE_INCLUDE_DIR ${TBB_INCLUDE_DIR} ABSOLUTE)
+	# 	list(APPEND LIBSINSP_INCLUDE_DIRS ${TBB_ABSOLUTE_INCLUDE_DIR})
+	# endif()
 
 	get_filename_component(JSONCPP_ABSOLUTE_INCLUDE_DIR ${JSONCPP_INCLUDE} ABSOLUTE)
 	list(APPEND LIBSINSP_INCLUDE_DIRS ${JSONCPP_ABSOLUTE_INCLUDE_DIR})

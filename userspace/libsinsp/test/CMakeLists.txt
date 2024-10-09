@@ -15,12 +15,8 @@
 
 include(jsoncpp)
 if(NOT EMSCRIPTEN)
-	include(tbb)
+	find_package(TBB)
 endif()
-if(NOT MINIMAL_BUILD AND NOT EMSCRIPTEN)
-	# include(curl) -- removed
-endif() # MINIMAL_BUILD
-
 include(zlib)
 
 if(WIN32)
@@ -195,7 +191,7 @@ target_include_directories(
 )
 
 target_link_libraries(
-	unit-test-libsinsp sinsp "${GTEST_LIB}" "${GTEST_MAIN_LIB}" "${TBB_LIB}" "${JSONCPP_LIB}"
+	unit-test-libsinsp sinsp "${GTEST_LIB}" "${GTEST_MAIN_LIB}" TBB::tbb "${JSONCPP_LIB}"
 )
 
 # Add some additional include directories associated with `ADDITIONAL_SINSP_TESTS_SUITE`
