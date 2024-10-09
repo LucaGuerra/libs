@@ -32,7 +32,7 @@ include(ExternalProject)
 find_package(re2 REQUIRED CONFIG)
 find_package(jsoncpp REQUIRED CONFIG)
 
-include(zlib)
+find_package(ZLIB REQUIRED)
 
 if(NOT MINIMAL_BUILD)
 	if(NOT WIN32 AND NOT EMSCRIPTEN)
@@ -166,16 +166,12 @@ target_link_libraries(
 	PRIVATE JsonCpp::JsonCpp
 )
 
-set(SINSP_PKGCONFIG_LIBRARIES scap "${ZLIB_LIB}" JsonCpp::JsonCpp re2)
+set(SINSP_PKGCONFIG_LIBRARIES scap JsonCpp re2)
 
 if(NOT EMSCRIPTEN)
 	target_link_libraries(
 		sinsp PRIVATE TBB::tbb
 	)
-endif()
-
-if(ENABLE_THREAD_POOL AND USE_BUNDLED_BS_THREADPOOL)
-	add_dependencies(sinsp bs_threadpool)
 endif()
 
 if(NOT WIN32)
@@ -247,9 +243,6 @@ if(NOT WIN32)
 			list(APPEND SINSP_PKGCONFIG_LIBRARIES rt)
 		endif() # NOT MINIMAL_BUILD
 	endif() # NOT APPLE
-
-	# target_link_libraries(sinsp INTERFACE "${OPENSSL_LIBRARIES}")
-	# list(APPEND SINSP_PKGCONFIG_LIBRARIES "${OPENSSL_LIBRARIES}")
 
 	target_link_libraries(sinsp INTERFACE dl pthread)
 	list(APPEND SINSP_PKGCONFIG_LIBRARIES dl pthread)

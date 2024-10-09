@@ -19,7 +19,7 @@ option(USE_BUNDLED_DEPS "Enable bundled dependencies instead of using the system
 
 include(ExternalProject)
 
-include(zlib)
+find_package(ZLIB REQUIRED)
 
 add_definitions(-DPLATFORM_NAME="${CMAKE_SYSTEM_NAME}")
 add_compile_options(${FALCOSECURITY_LIBS_USERSPACE_COMPILE_FLAGS})
@@ -88,7 +88,7 @@ target_include_directories(
 		   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
 )
 
-target_link_libraries(scap PRIVATE scap_error "${ZLIB_LIB}")
+target_link_libraries(scap PRIVATE scap_error ZLIB::ZLIB)
 
 add_library(
 	scap_event_schema STATIC

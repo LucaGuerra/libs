@@ -16,6 +16,8 @@
 option(USE_BUNDLED_LIBELF "Enable building of the bundled libelf" ${USE_BUNDLED_DEPS})
 option(USE_SHARED_LIBELF "When not using bundled libelf, link it dynamically" ON)
 
+include(zlib)
+
 if(LIBELF_INCLUDE)
 	# we already have LIBELF
 elseif(NOT USE_BUNDLED_LIBELF)

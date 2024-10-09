@@ -17,7 +17,6 @@ find_package(nlohmann_json CONFIG REQUIRED)
 if(NOT EMSCRIPTEN)
 	find_package(TBB CONFIG REQUIRED)
 endif()
-include(zlib)
 
 if(WIN32)
 	set(CMAKE_CXX_FLAGS

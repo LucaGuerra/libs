@@ -30,17 +30,13 @@ if(NOT HAVE_LIBSINSP)
 	include(ExternalProject)
 	include(libscap)
 
-	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
-		include(bs_threadpool)
-	endif()
-
 	set(LIBSINSP_INCLUDE_DIRS ${LIBS_DIR} ${LIBS_DIR}/userspace ${LIBSCAP_INCLUDE_DIRS}
 							  ${DRIVER_CONFIG_DIR}
 	)
 
 	if(ENABLE_THREAD_POOL AND NOT EMSCRIPTEN)
-		get_filename_component(BS_THREADPOOL_ABSOLUTE_INCLUDE_DIR ${BS_THREADPOOL_INCLUDE} ABSOLUTE)
-		list(APPEND LIBSINSP_INCLUDE_DIRS ${BS_THREADPOOL_ABSOLUTE_INCLUDE_DIR})
+		find_path(BSHOSHANY_THREAD_POOL_INCLUDE_DIRS "BS_thread_pool.hpp")
+		list(APPEND LIBSINSP_INCLUDE_DIRS ${BSHOSHANY_THREAD_POOL_INCLUDE_DIRS})
 	endif()
 
 	function(set_sinsp_target_properties target)
