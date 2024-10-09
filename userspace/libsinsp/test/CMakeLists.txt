@@ -14,6 +14,7 @@
 #
 
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 if(NOT EMSCRIPTEN)
 	find_package(TBB CONFIG REQUIRED)
 endif()
@@ -182,15 +183,16 @@ if(EMSCRIPTEN)
 	target_link_options(unit-test-libsinsp PRIVATE "-sNODERAWFS=1")
 endif()
 
+
+target_link_libraries(
+	unit-test-libsinsp sinsp GTest::gtest GTest::gtest_main TBB::tbb nlohmann_json::nlohmann_json
+)
+
 target_include_directories(
 	unit-test-libsinsp
 	PRIVATE ${LIBS_DIR} # needed for driver/event_stats.h
 			${CMAKE_CURRENT_BINARY_DIR} # needed for libsinsp_test_var.h.in
 			${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(
-	unit-test-libsinsp sinsp "${GTEST_LIB}" "${GTEST_MAIN_LIB}" TBB::tbb nlohmann_json::nlohmann_json
 )
 
 # Add some additional include directories associated with `ADDITIONAL_SINSP_TESTS_SUITE`

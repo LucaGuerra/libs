@@ -20,6 +20,7 @@ option(USE_BUNDLED_DEPS "Enable bundled dependencies instead of using the system
 include(ExternalProject)
 
 find_package(ZLIB REQUIRED)
+find_path(UTHASH_INCLUDE_DIRS "utarray.h")
 
 add_definitions(-DPLATFORM_NAME="${CMAKE_SYSTEM_NAME}")
 add_compile_options(${FALCOSECURITY_LIBS_USERSPACE_COMPILE_FLAGS})
@@ -72,6 +73,7 @@ target_include_directories(
 	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 		   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 		   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/${LIBS_PACKAGE_NAME}>
+		   ${UTHASH_INCLUDE_DIRS}
 )
 
 set_scap_target_properties(scap)
@@ -80,7 +82,7 @@ add_library(
 	scap_platform_util STATIC scap_platform.c scap_fds.c scap_iflist.c scap_proc_util.c
 							  scap_procs.c scap_userlist.c
 )
-add_dependencies(scap_platform_util uthash)
+# add_dependencies(scap_platform_util uthash)
 
 target_include_directories(
 	scap_platform_util
@@ -102,7 +104,7 @@ add_library(
 	linux/scap_ppm_sc.c
 )
 
-add_dependencies(scap_event_schema uthash)
+# add_dependencies(scap_event_schema uthash)
 
 target_include_directories(
 	scap_event_schema
@@ -127,7 +129,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		scap_engine_util STATIC scap_engine_util.c ringbuffer/devset.c ringbuffer/ringbuffer.c
 								ringbuffer/ringbuffer_dump.c
 	)
-	add_dependencies(scap_engine_util uthash)
+	# add_dependencies(scap_engine_util uthash)
 	target_include_directories(
 		scap_engine_util
 		PUBLIC $<BUILD_INTERFACE:${LIBS_DIR}> $<BUILD_INTERFACE:${LIBS_DIR}/userspace>

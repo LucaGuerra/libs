@@ -38,7 +38,7 @@ protobuf_generate(
 	IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/proto"
 )
 
-add_dependencies(scap_engine_gvisor uthash)
+# add_dependencies(scap_engine_gvisor uthash)
 target_link_libraries(
 	scap_engine_gvisor PRIVATE scap scap_platform_util scap_error protobuf::libprotobuf nlohmann_json::nlohmann_json
 								${CMAKE_THREAD_LIBS_INIT}

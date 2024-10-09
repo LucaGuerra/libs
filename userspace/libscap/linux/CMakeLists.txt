@@ -25,4 +25,4 @@ add_library(
 )
 target_include_directories(scap_platform PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_link_libraries(scap_platform PRIVATE scap_error scap_platform_util)
-add_dependencies(scap_platform uthash)
+# add_dependencies(scap_platform uthash)

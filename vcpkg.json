@@ -39,6 +39,14 @@
     {
       "name": "bshoshany-thread-pool",
       "version>=": "4.1.0"
+    },
+    {
+      "name": "uthash",
+      "version>=": "2.3.0"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.15.2"
     }
   ]
 }

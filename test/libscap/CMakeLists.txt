@@ -36,12 +36,9 @@ set(LIBSCAP_TESTS_INCLUDE
 	"${CMAKE_CURRENT_BINARY_DIR}" # used to include `libscap_test_var.h`
 )
 
-# Needed by gtest
-find_package(Threads)
-
-set(LIBSCAP_TESTS_LIBRARIES "${GTEST_LIB}" "${GTEST_MAIN_LIB}" "${CMAKE_THREAD_LIBS_INIT}" scap)
-
-set(LIBSCAP_TESTS_DEPENDENCIES gtest scap)
+find_package(GTest CONFIG REQUIRED)
+set(LIBSCAP_TESTS_LIBRARIES GTest::gtest GTest::gtest_main scap)
+set(LIBSCAP_TESTS_DEPENDENCIES scap)
 
 # Test suite asserting against pure userspace components
 file(GLOB_RECURSE USERSPACE_TEST_SUITE "${CMAKE_CURRENT_SOURCE_DIR}/test_suites/userspace/*.cpp")
