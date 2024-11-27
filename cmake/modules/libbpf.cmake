@@ -26,29 +26,40 @@ elseif(NOT USE_BUNDLED_LIBBPF)
 		message(FATAL_ERROR "Couldn't find system libbpf")
 	endif()
 else()
-	include(zlib)
-	include(libelf)
 	set(LIBBPF_SRC "${PROJECT_BINARY_DIR}/libbpf-prefix/src")
 	set(LIBBPF_BUILD_DIR "${LIBBPF_SRC}/libbpf-build")
 	set(LIBBPF_INCLUDE "${LIBBPF_BUILD_DIR}/root/usr/include")
 	set(LIBBPF_LIB "${LIBBPF_BUILD_DIR}/root/usr/lib64/libbpf.a")
+
+	get_target_property(LIBELF_INCLUDE_DIR elf INCLUDE_DIRECTORIES)
+
+	foreach(dir ${LIBELF_INCLUDE_DIR})
+		string(APPEND INCLUDE_COMPILER_STRING "-I${dir} ")
+	endforeach()
+
 	ExternalProject_Add(
 		libbpf
 		PREFIX "${PROJECT_BINARY_DIR}/libbpf-prefix"
-		DEPENDS zlib libelf
+		DEPENDS elf
 		URL "https://github.com/libbpf/libbpf/archive/refs/tags/v1.3.0.tar.gz"
 		URL_HASH "SHA256=11db86acd627e468bc48b7258c1130aba41a12c4d364f78e184fd2f5a913d861"
 		CONFIGURE_COMMAND mkdir -p build root
 		BUILD_COMMAND
 			make BUILD_STATIC_ONLY=y OBJDIR=${LIBBPF_BUILD_DIR}/build
 			DESTDIR=${LIBBPF_BUILD_DIR}/root NO_PKG_CONFIG=1
-			"EXTRA_CFLAGS=-fPIC -I${LIBELF_INCLUDE} -I${ZLIB_INCLUDE}" "LDFLAGS=-Wl,-Bstatic"
-			"EXTRA_LDFLAGS=-L${LIBELF_SRC}/libelf/libelf -L${ZLIB_SRC}" -C ${LIBBPF_SRC}/libbpf/src
+			"EXTRA_CFLAGS=-fPIC ${INCLUDE_COMPILER_STRING}" "LDFLAGS=-Wl,-Bstatic" -C ${LIBBPF_SRC}/libbpf/src
 			install install_uapi_headers
 		INSTALL_COMMAND ""
 		UPDATE_COMMAND ""
 		BUILD_BYPRODUCTS ${LIBBPF_LIB}
 	)
+
+	add_library(bpf STATIC IMPORTED)
+	set_target_properties(bpf PROPERTIES IMPORTED_LOCATION ${LIBBPF_LIB})
+	file(MAKE_DIRECTORY ${LIBBPF_INCLUDE}) # necessary to make target_include_directories() work
+	target_include_directories(bpf INTERFACE ${LIBBPF_INCLUDE})
+	target_link_libraries(bpf INTERFACE ZLIB::ZLIB elf)
+
 	message(STATUS "Using bundled libbpf: include'${LIBBPF_INCLUDE}', lib: ${LIBBPF_LIB}")
 	install(
 		FILES "${LIBBPF_LIB}"
@@ -56,9 +67,3 @@ else()
 		COMPONENT "libs-deps"
 	)
 endif()
-
-if(NOT TARGET libbpf)
-	add_custom_target(libbpf)
-endif()
-
-include_directories(${LIBBPF_INCLUDE})

@@ -62,6 +62,11 @@ add_library(elf
 	libelf_fsize.c
 	libelf_msize.c
 	libelf_convert.c
+
+	# custom files for compatibility
+	
+	gelf_getnote.c
+	gelf_versym.c
 )
 
 # m4 -D SRCDIR=/home/ubuntu/dev/falcosecurity/libs/contrib/elftoolchain/libelf  libelf_fsize.m4 > libelf_fsize.c

@@ -19,6 +19,8 @@ option(USE_BUNDLED_DEPS "Enable bundled dependencies instead of using the system
 
 include(ExternalProject)
 
+include(libbpf)
+
 find_package(ZLIB REQUIRED)
 find_path(UTHASH_INCLUDE_DIRS "utarray.h")
 
@@ -172,14 +174,12 @@ if(HAS_ENGINE_KMOD)
 endif()
 
 if(HAS_ENGINE_BPF)
-	include(libelf)
 	add_subdirectory(engine/bpf)
 	target_link_libraries(scap PUBLIC scap_engine_bpf)
 	target_include_directories(scap_engine_bpf PRIVATE ${PROJECT_BINARY_DIR}/driver/src)
 endif()
 
 if(HAS_ENGINE_MODERN_BPF)
-	include(libelf)
 	add_subdirectory(engine/modern_bpf)
 	target_link_libraries(scap PUBLIC scap_engine_modern_bpf)
 	target_include_directories(scap_engine_modern_bpf PRIVATE ${PROJECT_BINARY_DIR}/driver/src)
@@ -189,6 +189,9 @@ if(HAS_ENGINE_GVISOR)
 	add_subdirectory(engine/gvisor)
 	target_link_libraries(scap PUBLIC scap_engine_gvisor)
 endif()
+
+get_target_property(TLD_SCAP scap INTERFACE_LINK_LIBRARIES)
+message("INTERFACE LINK LIBRARIES for scap: ${TLD_SCAP}")
 
 # ##################################################################################################
 

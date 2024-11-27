@@ -16,3 +16,7 @@
 add_executable(scap-open scap_open.c)
 
 target_link_libraries(scap-open scap)
+
+get_target_property(TLD_SCAP_OPEN scap-open INTERFACE_LINK_LIBRARIES)
+
+message("INTERFACE LINK LIBRARIES for scap-open: ${TLD_SCAP_OPEN}")

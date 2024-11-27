@@ -253,24 +253,6 @@ Elf_Data	*elf64_xlatetof(Elf_Data *_dst, const Elf_Data *_src,
 Elf_Data	*elf64_xlatetom(Elf_Data *_dst, const Elf_Data *_src,
 			unsigned int _enc);
 
-/* ------------------------------------------------------- */
-
-size_t gelf_getnote (Elf_Data *__data, size_t __offset,
-		    GElf_Nhdr *__result,
-		    size_t *__name_offset, size_t *__desc_offset) {
-	printf("gelf_getnote() is not supported in elftoolchain libelf shipped with Falco");
-	exit(1);
-}
-
-/*
-static int parse_usdt_note(Elf *elf, const char *path, GElf_Nhdr *nhdr,
-			   const char *data, size_t name_off, size_t desc_off,
-			   struct usdt_note *usdt_note) {
-	printf("parse_usdt_note() is not supported in elftoolchain libelf shipped with Falco");
-	exit(1);
-}*/
-
-/* ------------------------------------------------------- */
 #ifdef __cplusplus
 }
 #endif
