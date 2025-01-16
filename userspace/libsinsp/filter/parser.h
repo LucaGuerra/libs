@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2022 The Falco Authors.
+Copyright (C) 2025 The Falco Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -53,9 +53,15 @@ namespace re2 { class RE2; };
 // Supported Check Operators (EBNF Syntax):
 //     UnaryOperator       ::= 'exists'
 //     NumOperator         ::= '<=' | '<' | '>=' | '>' 
-//     StrOperator         ::= '==' | '=' | '!=' | 'glob ' | 'contains '
-//                             | 'icontains ' | 'startswith ' | 'endswith '
-//     ListOperator        ::= 'intersects' | 'in' | 'pmatch' 
+//     StrOperator         ::= '==' | '=' | '!=' 
+//                             | 'bcontains' | 'bstartswith' 
+//                             | 'contains' 
+//                             | 'endswith' 
+//                             | 'glob'
+//                             | 'icontains' 
+//                             | 'startswith' 
+//                             | 'regex' 
+//     ListOperator        ::= 'in' | 'intersects' | 'pmatch' 
 // 
 // Tokens (Regular Expressions):
 //     Identifier          ::= [a-zA-Z]+[a-zA-Z0-9_]*
