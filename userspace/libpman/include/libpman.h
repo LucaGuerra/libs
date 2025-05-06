@@ -464,6 +464,21 @@ int pman_finalize_maps_after_loading(void);
  */
 void pman_mark_single_64bit_syscall(int syscall_id, bool interesting);
 
+/**
+ * @brief Finalizes the interesting syscall table.
+ * After this is called, it will no loger be possible to mark syscalls
+ * as (un)interesting.
+ *
+ * @return `0` on success, `errno` in case of error.
+ */
+int pman_freeze_syscall_configuration(void);
+
+int pman_get_syscall_configuration_fd();
+
+void pman_drop_syscall_configuration_fd(int fd);
+
+int pman_init_syscall_configuration();
+
 #ifdef __cplusplus
 }
 #endif

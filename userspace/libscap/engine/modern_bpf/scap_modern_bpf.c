@@ -147,11 +147,14 @@ int32_t scap_modern_bpf__start_capture(struct scap_engine_handle engine) {
 	 * "right" place to do it. We need to move it, if `scap_start_capture` will be called frequently
 	 * in our flow, right now in live mode, it should be called only once...
 	 */
+	int sc_config_map_fd = pman_get_syscall_configuration_fd();
 	for(int i = 0; i < SYSCALL_TABLE_SIZE; i++) {
 		pman_mark_single_64bit_syscall(i, false);
 	}
 	handle->capturing = true;
-	return pman_enforce_sc_set(handle->curr_sc_set.ppm_sc);
+	int err = pman_enforce_sc_set(handle->curr_sc_set.ppm_sc);
+	pman_drop_syscall_configuration_fd(sc_config_map_fd);
+	return err;
 }
 
 int32_t scap_modern_bpf__stop_capture(struct scap_engine_handle engine) {

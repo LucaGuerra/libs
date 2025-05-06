@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <driver/ppm_events_public.h>
+
 /* Here we have all definitions required both by
  * BPF programs and `libpman` library.
  */
@@ -79,4 +81,29 @@ struct counter_map {
 	uint64_t n_drops_buffer_close_exit;
 	uint64_t n_drops_buffer_proc_exit;
 	uint64_t n_drops_max_event_size; /* Number of drops due to an excessive event size (>64KB). */
+};
+
+/**
+ * @brief This map carries the syscall configuration.
+ */
+struct syscall_configuration_map {
+	/*
+	 * Given the syscall id on 64-bit-architectures returns if
+	 * the syscall must be filtered out according to the simple consumer logic.
+	 */
+	bool interesting_syscalls_table_64bit[SYSCALL_TABLE_SIZE];
+
+	/*
+	 * Given the syscall id on 64-bit-architectures returns:
+	 * - `UF_NEVER_DROP` if the syscall must not be dropped in the sampling logic.
+	 * - `UF_ALWAYS_DROP` if the syscall must always be dropped in the sampling logic.
+	 * - `UF_NONE` if we drop the syscall depends on the sampling ratio.
+	 */
+	uint8_t sampling_syscall_table_64bit[SYSCALL_TABLE_SIZE];
+
+	/*
+	 * Given the syscall id on 32-bit x86 arch returns
+	 * its x64 value. Used to support ia32 syscall emulation.
+	 */
+	uint32_t ia32_to_64_table[SYSCALL_TABLE_SIZE];
 };

@@ -79,27 +79,6 @@ static __always_inline void maps__set_socket_file_ops(void *value) {
 
 /*=============================== KERNEL CONFIGS ===========================*/
 
-/*=============================== SAMPLING TABLES ===========================*/
-
-static __always_inline uint8_t maps__64bit_sampling_syscall_table(uint32_t syscall_id) {
-	return g_64bit_sampling_syscall_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
-}
-
-/*=============================== SAMPLING TABLES ===========================*/
-
-/*=============================== SYSCALL-64 INTERESTING TABLE ===========================*/
-
-static __always_inline bool maps__64bit_interesting_syscall(uint32_t syscall_id) {
-	return g_64bit_interesting_syscalls_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
-}
-
-/*=============================== SYSCALL-64 INTERESTING TABLE ===========================*/
-
-/*=============================== IA32 to 64 TABLE ===========================*/
-
-static __always_inline uint32_t maps__ia32_to_64(uint32_t syscall_id) {
-	return g_ia32_to_64_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
-}
 
 /*=============================== SYSCALL-64 INTERESTING TABLE ===========================*/
 
@@ -148,3 +127,57 @@ static __always_inline struct ringbuf_map *maps__get_ringbuf_map() {
 }
 
 /*=============================== RINGBUF MAPS ===========================*/
+
+/*======================= SYSCALL CONFIGURATION MAPS =====================*/
+
+static __always_inline struct syscall_configuration_map *maps__get_syscall_configuration_map() {
+	const uint32_t key = 0;
+	return (struct syscall_configuration_map *)bpf_map_lookup_elem(&syscall_configuration, &key);
+}
+
+/*======================= SYSCALL CONFIGURATION MAPS =====================*/
+
+/*=============================== SYSCALL-64 INTERESTING TABLE ===========================*/
+
+static __always_inline bool maps__64bit_interesting_syscall(uint32_t syscall_id) {
+	struct syscall_configuration_map *map = maps__get_syscall_configuration_map();
+	if (map == NULL) {
+		return false;
+	} else {
+		return map->interesting_syscalls_table_64bit[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
+	}
+}
+
+/*=============================== SYSCALL-64 INTERESTING TABLE ===========================*/
+
+/*=============================== SAMPLING TABLES ===========================*/
+
+static __always_inline uint8_t maps__64bit_sampling_syscall_table(uint32_t syscall_id) {
+       return g_64bit_sampling_syscall_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
+}
+
+/*=============================== SAMPLING TABLES ===========================*/
+
+/*=============================== IA32 to 64 TABLE ===========================*/
+
+static __always_inline uint32_t maps__ia32_to_64(uint32_t syscall_id) {
+       return g_ia32_to_64_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
+}
+
+#if 0
+/*=============================== SAMPLING TABLES ===========================*/
+
+static __always_inline uint8_t maps__64bit_sampling_syscall_table(uint32_t syscall_id) {
+	return maps__get_syscall_configuration_map()->g_64bit_sampling_syscall_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
+}
+
+/*=============================== SAMPLING TABLES ===========================*/
+
+/*=============================== IA32 to 64 TABLE ===========================*/
+
+static __always_inline uint32_t maps__ia32_to_64(uint32_t syscall_id) {
+	return maps__get_syscall_configuration_map()->g_ia32_to_64_table[syscall_id & (SYSCALL_TABLE_SIZE - 1)];
+}
+
+/*=============================== IA32 to 64 TABLE ===========================*/
+#endif

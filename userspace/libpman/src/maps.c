@@ -19,6 +19,7 @@ limitations under the License.
 #include "state.h"
 
 #include <stdint.h>
+#include <string.h>
 #include "events_prog_table.h"
 #include <libscap/scap.h>
 
@@ -112,8 +113,102 @@ void pman_set_scap_tid(int32_t scap_tid) {
 	g_state.skel->bss->g_settings.scap_tid = scap_tid;
 }
 
-void pman_mark_single_64bit_syscall(int intersting_syscall_id, bool interesting) {
-	g_state.skel->bss->g_64bit_interesting_syscalls_table[intersting_syscall_id] = interesting;
+int pman_get_syscall_configuration_fd() {
+	char error_message[MAX_ERROR_MESSAGE_LEN];
+	if (g_state.syscall_configuration_map_fd != -1) {
+		g_state.syscall_configuration_map_fd_count++;
+		return g_state.syscall_configuration_map_fd;
+	}
+
+	int fd = bpf_obj_get(g_state.syscall_configuration_map_pin);
+	if (fd < 0) {
+		snprintf(error_message,
+			MAX_ERROR_MESSAGE_LEN,
+			"could not retrieve BPF syscall configuration map at %s\n", g_state.syscall_configuration_map_pin);
+		pman_print_error((const char *)error_message);
+		return fd;
+	}
+
+	g_state.syscall_configuration_map_fd_count++;
+	g_state.syscall_configuration_map_fd = fd;
+	return g_state.syscall_configuration_map_fd;
+}
+
+void pman_drop_syscall_configuration_fd(int fd) {
+	if (fd < 0) {
+		return;
+	}
+
+	if (g_state.syscall_configuration_map_fd_count == 0 || g_state.syscall_configuration_map_fd == -1) {
+		g_state.syscall_configuration_map_fd_count = 0;
+		return;
+	}
+
+	g_state.syscall_configuration_map_fd_count--;
+	if (g_state.syscall_configuration_map_fd_count == 0) {
+		close(g_state.syscall_configuration_map_fd);
+		g_state.syscall_configuration_map_fd = -1;
+	}
+}
+
+int pman_init_syscall_configuration() {
+	char error_message[MAX_ERROR_MESSAGE_LEN];
+	int fd = bpf_map__fd(g_state.skel->maps.syscall_configuration);
+	g_state.syscall_configuration_map_fd = fd;
+	g_state.syscall_configuration_map_fd_count = 1;
+	const char *pin_path = bpf_map__pin_path(g_state.skel->maps.syscall_configuration);
+	if (pin_path == NULL) {
+		snprintf(error_message,
+			MAX_ERROR_MESSAGE_LEN,
+			"the syscall configuration bpf map is not pinned (NULL pin path)!");
+		pman_print_error((const char *)error_message);
+		return -ENOENT;
+	}
+	g_state.syscall_configuration_map_pin = strdup(pin_path);
+	
+	const uint32_t key = 0;
+	struct syscall_configuration_map sc_map = {};
+	if(bpf_map_update_elem(fd, &key, &sc_map, BPF_ANY) < 0) {
+		snprintf(error_message,
+				 MAX_ERROR_MESSAGE_LEN,
+				 "unable to update the syscall configuration map for initialization!");
+		pman_print_error((const char *)error_message);
+	}
+
+	pman_drop_syscall_configuration_fd(fd);
+	return errno;
+}
+
+int pman_mark_single_64bit_syscall(int intersting_syscall_id, bool interesting) {
+	char error_message[MAX_ERROR_MESSAGE_LEN];
+	int sc_config_map_fd = pman_get_syscall_configuration_fd();
+	if (sc_config_map_fd < 0) {
+		goto clean_mark_single_64bit_syscall;
+	}
+
+	const uint32_t key = 0;
+	struct syscall_configuration_map sc_map;
+	if(bpf_map_lookup_elem(sc_config_map_fd, &key, &sc_map) < 0) {
+		snprintf(error_message,
+				 MAX_ERROR_MESSAGE_LEN,
+				 "unable to get the syscall configuration map!");
+		pman_print_error((const char *)error_message);
+		goto clean_mark_single_64bit_syscall;
+	}
+
+	sc_map.interesting_syscalls_table_64bit[intersting_syscall_id] = interesting;
+
+	if(bpf_map_update_elem(sc_config_map_fd, &key, &sc_map, BPF_ANY) < 0) {
+		snprintf(error_message,
+				 MAX_ERROR_MESSAGE_LEN,
+				 "unable to update the syscall configuration map!");
+		pman_print_error((const char *)error_message);
+		goto clean_mark_single_64bit_syscall;
+	}
+
+clean_mark_single_64bit_syscall:
+	pman_drop_syscall_configuration_fd(sc_config_map_fd);
+	return errno;
 }
 
 void pman_fill_syscall_sampling_table() {
@@ -346,9 +441,14 @@ int pman_finalize_maps_after_loading() {
 	pman_set_statsd_port(PPM_PORT_STATSD);
 
 	/* We have to fill all ours tail tables. */
+	pman_init_syscall_configuration();
 	pman_fill_syscall_sampling_table();
 	pman_fill_ia32_to_64_table();
 	err = pman_fill_syscalls_tail_table();
 	err = err ?: pman_fill_syscall_exit_extra_tail_table();
 	return err;
+}
+
+int pman_freeze_syscall_configuration() {
+	return bpf_map_freeze(bpf_map__fd(g_state.skel->maps.syscall_configuration));
 }

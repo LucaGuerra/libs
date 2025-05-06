@@ -58,6 +58,9 @@ struct internal_state {
 	               there were no successful reads. */
 	unsigned long last_event_size; /* Last event correctly read. Could be `0` if there were no
 	                                  successful reads. */
+	const char *syscall_configuration_map_pin; /* path to the syscall configuration map pin */
+	int syscall_configuration_map_fd; /* fd for the syscall configuration map */
+	uint32_t syscall_configuration_map_fd_count; /* usage count for the fd */
 
 	/* Stats v2 utilities */
 	int32_t attached_progs_fds[MODERN_BPF_PROG_ATTACHED_MAX]; /* file descriptors of attached

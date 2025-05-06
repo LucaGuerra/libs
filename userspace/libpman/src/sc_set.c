@@ -43,6 +43,7 @@ int pman_enforce_sc_set(bool *sc_set) {
 	bool sched_prog_fork = false;
 	bool sched_prog_exec = false;
 
+	int sc_config_fd = pman_get_syscall_configuration_fd();
 	/* Enforce interesting syscalls */
 	for(int sc = 0; sc < PPM_SC_MAX; sc++) {
 		syscall_id = scap_ppm_sc_to_native_id(sc);
@@ -59,6 +60,7 @@ int pman_enforce_sc_set(bool *sc_set) {
 			pman_mark_single_64bit_syscall(syscall_id, true);
 		}
 	}
+	pman_drop_syscall_configuration_fd(sc_config_fd);
 
 	if(sc_set[PPM_SC_FORK] || sc_set[PPM_SC_VFORK] || sc_set[PPM_SC_CLONE] ||
 	   sc_set[PPM_SC_CLONE3]) {

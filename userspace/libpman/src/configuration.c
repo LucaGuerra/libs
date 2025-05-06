@@ -77,6 +77,9 @@ void pman_clear_state() {
 	g_state.buffer_bytes_dim = 0;
 	g_state.last_ring_read = -1;
 	g_state.last_event_size = 0;
+	g_state.syscall_configuration_map_fd = -1;
+	g_state.syscall_configuration_map_fd_count = 0;
+	g_state.syscall_configuration_map_pin = NULL;
 
 	for(int j = 0; j < MODERN_BPF_PROG_ATTACHED_MAX; j++) {
 		g_state.attached_progs_fds[j] = -1;

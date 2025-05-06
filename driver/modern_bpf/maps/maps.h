@@ -52,12 +52,6 @@ __weak const volatile uint64_t probe_schema_var = PPM_SCHEMA_CURRENT_VERSION;
 /*=============================== BPF GLOBAL VARIABLES ===============================*/
 
 /**
- * @brief Given the syscall id on 64-bit-architectures returns if
- * the syscall must be filtered out according to the simple consumer logic.
- */
-__weak bool g_64bit_interesting_syscalls_table[SYSCALL_TABLE_SIZE];
-
-/**
  * @brief Given the syscall id on 64-bit-architectures returns:
  * - `UF_NEVER_DROP` if the syscall must not be dropped in the sampling logic.
  * - `UF_ALWAYS_DROP` if the syscall must always be dropped in the sampling logic.
@@ -166,6 +160,14 @@ struct {
 	__type(key, uint32_t);
 	__type(value, struct counter_map);
 } counter_maps __weak SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, uint32_t);
+	__type(value, struct syscall_configuration_map);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+} syscall_configuration __weak SEC(".maps");
 
 /*=============================== BPF_MAP_TYPE_ARRAY ===============================*/
 
