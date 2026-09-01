@@ -1630,7 +1630,60 @@ enum extra_event_prog_code
 	PPM_SC_X(SCHED_SWITCH, 397) \
 	PPM_SC_X(PAGE_FAULT_USER, 398) \
 	PPM_SC_X(PAGE_FAULT_KERNEL, 399) \
-	PPM_SC_X(SIGNAL_DELIVER, 400)
+	PPM_SC_X(SIGNAL_DELIVER, 400)          \
+	PPM_SC_X(URETPROBE, 401)               \
+	PPM_SC_X(FILE_SETATTR, 402)            \
+	PPM_SC_X(RISCV_HWPROBE, 403)           \
+	PPM_SC_X(FCHROOT, 404)                 \
+	PPM_SC_X(REMOVEXATTRAT, 405)           \
+	PPM_SC_X(OLDLSTAT, 406)                \
+	PPM_SC_X(MSEAL, 407)                   \
+	PPM_SC_X(LSM_LIST_MODULES, 408)        \
+	PPM_SC_X(SIGSUSPEND, 409)              \
+	PPM_SC_X(GETXATTRAT, 410)              \
+	PPM_SC_X(FUTEX_WAIT, 411)              \
+	PPM_SC_X(OLDOLDUNAME, 412)             \
+	PPM_SC_X(SUBPAGE_PROT, 413)            \
+	PPM_SC_X(SYS_DEBUG_SETCONTEXT, 414)    \
+	PPM_SC_X(STATMOUNT, 415)               \
+	PPM_SC_X(LISTXATTRAT, 416)             \
+	PPM_SC_X(UPROBE, 417)                  \
+	PPM_SC_X(FILE_GETATTR, 418)            \
+	PPM_SC_X(TIMERFD, 419)                 \
+	PPM_SC_X(FUTEX_REQUEUE, 420)           \
+	PPM_SC_X(PCICONFIG_IOBASE, 421)        \
+	PPM_SC_X(PCICONFIG_WRITE, 422)         \
+	PPM_SC_X(S390_GUARDED_STORAGE, 423)    \
+	PPM_SC_X(S390_PCI_MMIO_WRITE, 424)     \
+	PPM_SC_X(SWAPCONTEXT, 425)             \
+	PPM_SC_X(S390_RUNTIME_INSTR, 426)      \
+	PPM_SC_X(CACHESTAT, 427)               \
+	PPM_SC_X(SIGRETURN, 428)               \
+	PPM_SC_X(S390_PCI_MMIO_READ, 429)      \
+	PPM_SC_X(RISCV_FLUSH_ICACHE, 430)      \
+	PPM_SC_X(RTAS, 431)                    \
+	PPM_SC_X(LSM_SET_SELF_ATTR, 432)       \
+	PPM_SC_X(SETXATTRAT, 433)              \
+	PPM_SC_X(MAP_SHADOW_STACK, 434)        \
+	PPM_SC_X(OLDFSTAT, 435)                \
+	PPM_SC_X(LSM_GET_SELF_ATTR, 436)       \
+	PPM_SC_X(OLDSTAT, 437)                 \
+	PPM_SC_X(MULTIPLEXER, 438)             \
+	PPM_SC_X(SWITCH_ENDIAN, 439)           \
+	PPM_SC_X(S390_STHYI, 440)              \
+	PPM_SC_X(LISTMOUNT, 441)               \
+	PPM_SC_X(FUTEX_WAKE, 442)              \
+	PPM_SC_X(SIGACTION, 443)               \
+	PPM_SC_X(READDIR, 444)                 \
+	PPM_SC_X(SPU_RUN, 445)                 \
+	PPM_SC_X(VM86, 446)                    \
+	PPM_SC_X(FCHMODAT2, 447)               \
+	PPM_SC_X(PCICONFIG_READ, 448)          \
+	PPM_SC_X(LISTNS, 449)                  \
+	PPM_SC_X(SYNC_FILE_RANGE2, 450)        \
+	PPM_SC_X(RSEQ_SLICE_YIELD, 451)        \
+	PPM_SC_X(OPEN_TREE_ATTR, 452)          \
+	PPM_SC_X(SPU_CREATE, 453)
 
 typedef enum {
 #define PPM_SC_X(name, value) PPM_SC_##name = (value),
